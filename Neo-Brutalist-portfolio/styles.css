@@ -156,3 +156,108 @@ ul {
     transform: translateX(-50%);
   }
 }
+
+/* Choice Cards Styles */
+.choice-card {
+  perspective: 1000px;
+  position: relative;
+}
+
+.choice-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.choice-card:hover::before {
+  opacity: 1;
+}
+
+.choice-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(255,255,255,0.1);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: slideIn 0.6s ease-out forwards;
+}
+
+/* Scroll Lock Indicator */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.5;
+    text-shadow: 0 0 10px rgba(255,255,255,0.2);
+  }
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 20px rgba(255,255,255,0.4);
+  }
+}
+
+/* Reset Button Styling */
+.reset-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+  font-size: 0.875rem;
+}
+
+.reset-button:hover {
+  gap: 0.75rem;
+}
+
+/* Course Tagline Fade In */
+.course-tagline {
+  animation: fadeInUp 0.6s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+/* Grid Animation for Courses */
+.work-card-inner {
+  animation: fadeInUp 0.8s ease-out backwards;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .choice-card {
+    padding: 2rem;
+  }
+  
+  .choice-card > div:nth-child(1) {
+    font-size: 3rem;
+  }
+}
