@@ -10,8 +10,7 @@ export default function Header() {
     { label: 'Home', href: '#home' },
     { label: 'Courses', href: '#courses' },
     { label: 'About', href: '#about' },
-    { label: 'Testimonials', href: '#testimonials' },
-    { label: 'Choose Path', href: '#choose-path' }
+    { label: 'Testimonials', href: '#testimonials' }
   ];
 
   useEffect(() => {

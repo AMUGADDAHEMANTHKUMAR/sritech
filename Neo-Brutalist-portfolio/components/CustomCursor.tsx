@@ -21,8 +21,22 @@ export default function CustomCursor() {
       });
     };
 
-    const onHoverStart = () => cursor?.classList.add('hovered');
-    const onHoverEnd = () => cursor?.classList.remove('hovered');
+    const isInteractiveElement = (target: EventTarget | null): boolean => {
+      return target instanceof Element && Boolean(target.closest('a, button, input, textarea, select, .cursor-pointer'));
+    };
+
+    const onPointerOver = (event: PointerEvent) => {
+      if (isInteractiveElement(event.target)) {
+        cursor.classList.add('hovered');
+      }
+    };
+
+    const onPointerOut = (event: PointerEvent) => {
+      if (!isInteractiveElement(event.relatedTarget)) {
+        cursor.classList.remove('hovered');
+      }
+    };
+
     const onTouchMove = (e: TouchEvent) => {
       const touch = e.touches[0];
       if (!touch) return;
@@ -48,22 +62,15 @@ export default function CustomCursor() {
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('touchstart', onTouchStart, { passive: true });
     window.addEventListener('touchmove', onTouchMove, { passive: true });
-    
-    // Add hover listeners to all clickable elements
-    const clickables = document.querySelectorAll('a, button, .cursor-pointer');
-    clickables.forEach(el => {
-      el.addEventListener('mouseenter', onHoverStart);
-      el.addEventListener('mouseleave', onHoverEnd);
-    });
+    document.addEventListener('pointerover', onPointerOver);
+    document.addEventListener('pointerout', onPointerOut);
 
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('touchmove', onTouchMove);
-      clickables.forEach(el => {
-        el.removeEventListener('mouseenter', onHoverStart);
-        el.removeEventListener('mouseleave', onHoverEnd);
-      });
+      document.removeEventListener('pointerover', onPointerOver);
+      document.removeEventListener('pointerout', onPointerOut);
     };
   }, []);
 
