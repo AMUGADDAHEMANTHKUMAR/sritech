@@ -9,6 +9,7 @@ interface FormErrors {
 }
 
 const BUSINESS_WHATSAPP_NUMBER = '919494712989';
+const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbw-9plED1wgPMQmnRtDuw3FooKLWSHPS7k94A8fx7tNZCzSUjhA5Dh46ouGoYDhaWSy_Q/exec';
 
 function getSelectedPathFromState(state: unknown): SelectedPath | null {
   if (!state || typeof state !== 'object' || !('selectedPath' in state)) {
@@ -56,6 +57,7 @@ export default function EnrollPage() {
   const [message, setMessage] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = (): boolean => {
     const nextErrors: FormErrors = {};
@@ -80,19 +82,46 @@ export default function EnrollPage() {
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSuccessMessage('');
 
-    if (!course || !validateForm()) {
+    if (!course || isSubmitting || !validateForm()) {
       return;
     }
 
-    const whatsappText = `Hi, I want to enroll in ${course.title}. My name is ${fullName.trim()}, Email: ${email.trim()}, Phone: ${phone}.`;
-    const whatsappUrl = `https://wa.me/${BUSINESS_WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
+    const formData = {
+      name: fullName.trim(),
+      email: email.trim(),
+      phone,
+      message: message.trim()
+    };
 
-    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-    setSuccessMessage('Thank you! Redirecting you to WhatsApp to complete your enrollment.');
+    setIsSubmitting(true);
+
+    try {
+      await fetch(GOOGLE_SHEETS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          course: course.title,
+          message: formData.message || '',
+          path: selectedPath
+        })
+      });
+
+      const whatsappText = `Hi, I want to enroll in ${course.title}. My name is ${formData.name}, Email: ${formData.email}, Phone: ${formData.phone}`;
+      const whatsappUrl = `https://wa.me/${BUSINESS_WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
+
+      window.open(whatsappUrl, '_blank');
+      setSuccessMessage('Thank you! Redirecting you to WhatsApp...');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleBackToCourses = () => {
@@ -253,9 +282,10 @@ export default function EnrollPage() {
 
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="h-[46px] w-full border border-white bg-white px-6 text-[13px] font-bold uppercase tracking-[0.25em] text-black transition-colors hover:bg-transparent hover:text-white"
               >
-                Enroll Now
+                {isSubmitting ? 'Submitting...' : 'Enroll Now'}
               </button>
 
               {successMessage && (
@@ -270,3 +300,4 @@ export default function EnrollPage() {
     </main>
   );
 }
+
