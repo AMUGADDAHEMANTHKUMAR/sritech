@@ -1,6 +1,5 @@
 import React, { FormEvent, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import CustomCursor from './CustomCursor';
 import { allProjects, Project, SelectedPath, studentProjects, workExperienceProjects } from './WorkGallery';
 
 interface FormErrors {
@@ -105,7 +104,6 @@ export default function EnrollPage() {
   if (!course) {
     return (
       <main className="flex min-h-screen w-full flex-col items-center justify-center overflow-x-hidden bg-[#050505] px-[60px] py-[40px] text-white max-md:justify-start max-md:p-[20px]">
-        <CustomCursor />
         <div className="flex w-full max-w-[1100px] flex-col">
           <button
             type="button"
@@ -125,7 +123,6 @@ export default function EnrollPage() {
 
   return (
     <main className="flex min-h-screen w-full flex-col items-center justify-center overflow-x-hidden bg-[#050505] px-[60px] py-[40px] text-[#e1e1e1] max-md:justify-start max-md:p-[20px]">
-      <CustomCursor />
       <div className="flex w-full max-w-[1100px] flex-col">
         <button
           type="button"

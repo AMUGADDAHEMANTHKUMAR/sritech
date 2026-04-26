@@ -10,15 +10,12 @@ export default function CustomCursor() {
     
     // Center the anchor point
     gsap.set(cursor, { xPercent: -50, yPercent: -50 });
+    const moveX = gsap.quickTo(cursor, 'x', { duration: 0.18, ease: 'power3.out' });
+    const moveY = gsap.quickTo(cursor, 'y', { duration: 0.18, ease: 'power3.out' });
     
     const onMouseMove = (e: MouseEvent) => {
-      gsap.to(cursor, {
-        x: e.clientX,
-        y: e.clientY,
-        duration: 0.1,
-        ease: 'power2.out',
-        overwrite: 'auto'
-      });
+      moveX(e.clientX);
+      moveY(e.clientY);
     };
 
     const isInteractiveElement = (target: EventTarget | null): boolean => {
@@ -40,13 +37,8 @@ export default function CustomCursor() {
     const onTouchMove = (e: TouchEvent) => {
       const touch = e.touches[0];
       if (!touch) return;
-      gsap.to(cursor, {
-        x: touch.clientX,
-        y: touch.clientY,
-        duration: 0.08,
-        ease: 'power2.out',
-        overwrite: 'auto'
-      });
+      moveX(touch.clientX);
+      moveY(touch.clientY);
     };
     const onTouchStart = (e: TouchEvent) => {
       const touch = e.touches[0];

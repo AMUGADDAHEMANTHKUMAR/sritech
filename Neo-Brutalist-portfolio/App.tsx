@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import Lenis from '@studio-freight/lenis';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -17,48 +17,79 @@ import CustomCursor from './components/CustomCursor';
 // Register ScrollTrigger globally
 gsap.registerPlugin(ScrollTrigger);
 
-function MainApp() {
+function SmoothScroll() {
   useEffect(() => {
-    // Initialize Lenis for smooth scrolling
     const lenis = new Lenis({
-      duration: 1.2,
+      duration: 1.05,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       direction: 'vertical',
       gestureDirection: 'vertical',
       smooth: true,
       mouseMultiplier: 1,
-      smoothTouch: false,
+      smoothTouch: true,
       touchMultiplier: 2,
     });
 
-    // Synchronize Lenis with GSAP ScrollTrigger
     lenis.on('scroll', ScrollTrigger.update);
 
-    // Add Lenis's requestAnimationFrame to GSAP's ticker
-    gsap.ticker.add((time) => {
-      lenis.raf(time * 1000);
-    });
-
-    // Disable GSAP's native lag smoothing to prevent stutters
     gsap.ticker.lagSmoothing(0);
 
-    // Animation Loop
+    let rafId = 0;
     function raf(time: number) {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      rafId = requestAnimationFrame(raf);
     }
-    requestAnimationFrame(raf);
+    rafId = requestAnimationFrame(raf);
 
     return () => {
+      cancelAnimationFrame(rafId);
       lenis.destroy();
-      gsap.ticker.remove(lenis.raf);
     };
   }, []);
 
+  return null;
+}
+
+function RouteScrollManager() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const previousPathRef = useRef(location.pathname);
+
+  useEffect(() => {
+    const state = location.state as { scrollToId?: unknown; selectedPath?: unknown } | null;
+    const stateTarget = typeof state?.scrollToId === 'string' ? state.scrollToId : null;
+    const hashTarget = location.hash ? location.hash.slice(1) : null;
+    const targetId = stateTarget ?? hashTarget;
+    const pathChanged = previousPathRef.current !== location.pathname;
+
+    previousPathRef.current = location.pathname;
+
+    if (state?.selectedPath) {
+      return;
+    }
+
+    if (!targetId) {
+      if (pathChanged) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    if (stateTarget) {
+      navigate(location.pathname + location.hash, { replace: true, state: null });
+    }
+  }, [location.hash, location.pathname, location.state, navigate]);
+
+  return null;
+}
+
+function MainApp() {
   return (
-    <div className="w-full min-h-screen bg-[#050505] text-[#e1e1e1]">
-      <div className="noise-overlay"></div>
-      <CustomCursor />
+    <>
       <Header />
       <main>
         <Hero />
@@ -67,69 +98,36 @@ function MainApp() {
         <Team />
       </main>
       <Footer />
-    </div>
+    </>
   );
 }
 
 function CourseDetailsPage() {
-  useEffect(() => {
-    // Initialize Lenis for smooth scrolling
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      direction: 'vertical',
-      gestureDirection: 'vertical',
-      smooth: true,
-      mouseMultiplier: 1,
-      smoothTouch: false,
-      touchMultiplier: 2,
-    });
-
-    // Synchronize Lenis with GSAP ScrollTrigger
-    lenis.on('scroll', ScrollTrigger.update);
-
-    // Add Lenis's requestAnimationFrame to GSAP's ticker
-    gsap.ticker.add((time) => {
-      lenis.raf(time * 1000);
-    });
-
-    // Disable GSAP's native lag smoothing to prevent stutters
-    gsap.ticker.lagSmoothing(0);
-
-    // Animation Loop
-    function raf(time: number) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-    requestAnimationFrame(raf);
-
-    return () => {
-      lenis.destroy();
-      gsap.ticker.remove(lenis.raf);
-    };
-  }, []);
-
   return (
-    <div className="w-full min-h-screen bg-[#050505] text-[#e1e1e1]">
-      <div className="noise-overlay"></div>
-      <CustomCursor />
+    <>
       <Header />
       <main>
         <CourseDetails />
       </main>
       <Footer />
-    </div>
+    </>
   );
 }
 
 export default function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<MainApp />} />
-        <Route path="/course/:courseId" element={<CourseDetailsPage />} />
-        <Route path="/enroll/:courseName" element={<EnrollPage />} />
-      </Routes>
+      <SmoothScroll />
+      <RouteScrollManager />
+      <div className="w-full min-h-screen bg-[#050505] text-[#e1e1e1]">
+        <div className="noise-overlay"></div>
+        <CustomCursor />
+        <Routes>
+          <Route path="/" element={<MainApp />} />
+          <Route path="/course/:courseId" element={<CourseDetailsPage />} />
+          <Route path="/enroll/:courseName" element={<EnrollPage />} />
+        </Routes>
+      </div>
     </Router>
   );
 }

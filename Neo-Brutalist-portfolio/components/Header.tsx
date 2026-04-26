@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { gsap } from 'gsap';
 
 export default function Header() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const headerRef = useRef<HTMLElement>(null);
   const logoRef = useRef<HTMLAnchorElement>(null);
   const linksRef = useRef<HTMLUListElement>(null);
@@ -36,13 +39,34 @@ export default function Header() {
     return () => ctx.revert();
   }, []);
 
+  const scrollToSection = (href: string) => {
+    const targetId = href.replace('#', '');
+
+    setMobileMenuOpen(false);
+
+    if (location.pathname !== '/') {
+      navigate('/', { state: { scrollToId: targetId } });
+      return;
+    }
+
+    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <>
       <header 
         ref={headerRef}
         className="fixed top-0 left-0 w-full z-50 flex justify-between items-center py-6 px-8 mix-blend-difference text-white"
       >
-        <a ref={logoRef} href="#" className="hidden md:inline text-xl md:text-2xl font-bold font-[Syne] tracking-tight uppercase relative z-50">
+        <a
+          ref={logoRef}
+          href="#home"
+          onClick={(event) => {
+            event.preventDefault();
+            scrollToSection('#home');
+          }}
+          className="hidden md:inline text-xl md:text-2xl font-bold font-[Syne] tracking-tight uppercase relative z-50"
+        >
           <span>SRITECH website</span>
         </a>
 
@@ -50,7 +74,14 @@ export default function Header() {
           <ul ref={linksRef} className="flex space-x-8 text-sm font-medium tracking-wide uppercase">
             {navItems.map((item) => (
               <li key={item.label} className="overflow-hidden group">
-                <a href={item.href} className="block relative">
+                <a
+                  href={item.href}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    scrollToSection(item.href);
+                  }}
+                  className="block relative"
+                >
                   <span className="block transition-transform duration-500 group-hover:-translate-y-full">
                     {item.label}
                   </span>
@@ -83,7 +114,10 @@ export default function Header() {
               <li key={item.label} className={`transition-all duration-500 delay-${i * 100} ${mobileMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                 <a 
                   href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    scrollToSection(item.href);
+                  }}
                   className="hover:text-gray-400 transition-colors"
                 >
                   {item.label}
