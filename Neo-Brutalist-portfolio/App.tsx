@@ -9,8 +9,10 @@ import Hero from './components/Hero';
 import Intro from './components/Intro';
 import WorkGallery from './components/WorkGallery';
 import Team from './components/Team';
+import ContactForm from './components/ContactForm';
 import CourseDetails from './components/CourseDetails';
 import EnrollPage from './components/EnrollPage';
+import AdminDashboard from './components/AdminDashboard';
 import Footer from './components/Footer';
 import CustomCursor from './components/CustomCursor';
 
@@ -96,6 +98,7 @@ function MainApp() {
         <WorkGallery />
         <Intro />
         <Team />
+        <ContactForm />
       </main>
       <Footer />
     </>
@@ -126,6 +129,7 @@ export default function App() {
           <Route path="/" element={<MainApp />} />
           <Route path="/course/:courseId" element={<CourseDetailsPage />} />
           <Route path="/enroll/:courseName" element={<EnrollPage />} />
+          <Route path="/admin" element={<AdminDashboard />} />
         </Routes>
       </div>
     </Router>
