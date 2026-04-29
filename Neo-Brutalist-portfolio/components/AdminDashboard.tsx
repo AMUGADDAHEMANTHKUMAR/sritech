@@ -154,16 +154,16 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState<AdminTab>('beginners');
-  const [selectedMonth, setSelectedMonth] = useState('April 2026');
-  const [beginners, setBeginners] = useState<SheetRecord[]>([]);
-  const [professionals, setProfessionals] = useState<SheetRecord[]>([]);
-  const [contacts, setContacts] = useState<SheetRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('Apr 2026');
+  const [beginnerData, setBeginnerData] = useState<SheetRecord[]>([]);
+  const [professionalData, setProfessionalData] = useState<SheetRecord[]>([]);
+  const [contactData, setContactData] = useState<SheetRecord[]>([]);
+  const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
-  const totalBeginners = beginners.length;
-  const totalProfessionals = professionals.length;
-  const totalContacts = contacts.length;
+  const totalBeginners = beginnerData.length;
+  const totalProfessionals = professionalData.length;
+  const totalContacts = contactData.length;
 
   useEffect(() => {
     setPassword('');
@@ -171,66 +171,52 @@ export default function AdminDashboard() {
     setIsLoggedIn(false);
   }, []);
 
-  const currentRows = useMemo(() => {
+  const currentData = useMemo(() => {
     if (activeTab === 'beginners') {
-      return beginners;
+      return beginnerData;
     }
 
     if (activeTab === 'professionals') {
-      return professionals;
+      return professionalData;
     }
 
-    return contacts;
-  }, [activeTab, beginners, contacts, professionals]);
+    return contactData;
+  }, [activeTab, beginnerData, contactData, professionalData]);
 
   useEffect(() => {
     setSelectedRows(new Set());
   }, [activeTab, selectedMonth]);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    setBeginnerData([]);
+    setProfessionalData([]);
+    setContactData([]);
+    setSelectedRows(new Set());
+    setFetchError('');
+
+    const [beginners, professionals, contacts] = await Promise.all([
+      fetchSheetRecords('beginners', selectedMonth),
+      fetchSheetRecords('professionals', selectedMonth),
+      fetchSheetRecords('contacts', selectedMonth)
+    ]);
+
+    setBeginnerData(beginners);
+    setProfessionalData(professionals);
+    setContactData(contacts);
+    setLoading(false);
+
+    if (beginners.length === 0 && professionals.length === 0 && contacts.length === 0) {
+      setFetchError(`No data found for ${selectedMonth}`);
+    }
+  };
 
   useEffect(() => {
     if (!isLoggedIn) {
       return;
     }
 
-    let isMounted = true;
-
-    const fetchDashboardData = async () => {
-      if (!isMounted) {
-        return;
-      }
-
-      setBeginners([]);
-      setProfessionals([]);
-      setContacts([]);
-      setSelectedRows(new Set());
-      setIsLoading(true);
-      setFetchError('');
-
-      const [beginnerRows, professionalRows, contactRows] = await Promise.all([
-        fetchSheetRecords('beginners', selectedMonth),
-        fetchSheetRecords('professionals', selectedMonth),
-        fetchSheetRecords('contacts', selectedMonth)
-      ]);
-
-      if (!isMounted) {
-        return;
-      }
-
-      setBeginners(beginnerRows);
-      setProfessionals(professionalRows);
-      setContacts(contactRows);
-      setIsLoading(false);
-
-      if (beginnerRows.length === 0 && professionalRows.length === 0 && contactRows.length === 0) {
-        setFetchError(`No data found for ${selectedMonth}`);
-      }
-    };
-
-    void fetchDashboardData();
-
-    return () => {
-      isMounted = false;
-    };
+    void fetchAll();
   }, [isLoggedIn, selectedMonth]);
 
   const handleLogin = (event: FormEvent<HTMLFormElement>) => {
@@ -254,7 +240,7 @@ export default function AdminDashboard() {
     setLoginError('');
   };
 
-  const allCurrentRowsSelected = currentRows.length > 0 && selectedRows.size === currentRows.length;
+  const allCurrentRowsSelected = currentData.length > 0 && selectedRows.size === currentData.length;
 
   const handleToggleRow = (rowIndex: number) => {
     setSelectedRows((currentSelection) =>
@@ -274,21 +260,21 @@ export default function AdminDashboard() {
 
   const handleToggleSelectAll = () => {
     setSelectedRows((currentSelection) =>
-      currentSelection.size === currentRows.length
+      currentSelection.size === currentData.length
         ? new Set<number>()
-        : new Set(currentRows.map((_, index) => index))
+        : new Set(currentData.map((_, index) => index))
     );
   };
 
   const handleDownloadAll = () => {
-    const csvRows = currentRows.map((row) => rowToCsvValues(row, activeTab));
+    const csvRows = currentData.map((row) => rowToCsvValues(row, activeTab));
     const fileTabLabel = tabLabels[activeTab];
     const fileMonthLabel = selectedMonth.replace(/\s+/g, '-');
     downloadCSV(csvRows, `SRITECH-${fileTabLabel}-${fileMonthLabel}.csv`, activeTab);
   };
 
   const handleDownloadSelected = () => {
-    const rowsToExport = currentRows
+    const rowsToExport = currentData
       .filter((_, index) => selectedRows.has(index))
       .map((row) => rowToCsvValues(row, activeTab));
 
@@ -387,7 +373,10 @@ export default function AdminDashboard() {
             <button
               key={tab}
               type="button"
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                setSelectedRows(new Set());
+              }}
               className={`h-12 border text-xs font-bold uppercase tracking-[0.2em] transition-colors ${
                 activeTab === tab
                   ? 'border-white bg-white text-black'
@@ -430,13 +419,13 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          {isLoading && <p className="p-6 text-gray-400">Loading...</p>}
-          {fetchError && !isLoading && <p className="p-6 text-gray-400">{fetchError}</p>}
-          {!isLoading && !fetchError && currentRows.length === 0 && (
+          {loading && <p className="p-6 text-gray-400">Loading...</p>}
+          {fetchError && !loading && <p className="p-6 text-gray-400">{fetchError}</p>}
+          {!loading && !fetchError && currentData.length === 0 && (
             <p className="p-6 text-gray-400">No data found for {selectedMonth}</p>
           )}
 
-          {!isLoading && !fetchError && currentRows.length > 0 && (
+          {!loading && !fetchError && currentData.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] border-collapse text-left text-sm">
                 <thead className="bg-[#111] text-xs uppercase tracking-wider text-gray-400">
@@ -458,7 +447,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentRows.map((row, index) => (
+                  {currentData.map((row, index) => (
                     <tr key={`${activeTab}-${index}-${row.email}-${row.phone}`} className={index % 2 === 0 ? 'bg-[#080808]' : 'bg-[#101010]'}>
                       <td className="px-4 py-4 text-gray-400">
                         <input
