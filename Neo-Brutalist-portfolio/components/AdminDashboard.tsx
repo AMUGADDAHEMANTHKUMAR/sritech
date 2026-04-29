@@ -85,6 +85,12 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
 
+  useEffect(() => {
+    setPassword('');
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    setIsLoggedIn(false);
+  }, []);
+
   const currentRows = useMemo(() => {
     if (activeTab === 'beginners') {
       return beginners;
@@ -181,6 +187,10 @@ export default function AdminDashboard() {
           <input
             id="admin-password"
             type="password"
+            autoComplete="new-password"
+            autoSave="off"
+            readOnly
+            onFocus={(e) => e.target.removeAttribute('readOnly')}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             className="mb-4 h-12 w-full border border-white/15 bg-[#050505] px-4 text-white outline-none transition-colors focus:border-white"
