@@ -53,54 +53,63 @@ function getMonthLabel(date = new Date()): string {
 }
 
 function parseCell(cell: GvizCell | null): string {
-  if (!cell) {
-    return '';
-  }
-
-  if (cell.f !== null && cell.f !== undefined && String(cell.f).trim() !== '' && (cell.v === null || cell.v === undefined)) {
-    return String(cell.f);
-  }
-
-  if (cell.v === null || cell.v === undefined) {
+  if (!cell || cell.v === null || cell.v === undefined) {
     return '';
   }
 
   const val = cell.v;
 
+  const formatDate = (date: Date): string => {
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    const sec = String(date.getSeconds()).padStart(2, '0');
+    return `${dd}/${mm}/${yyyy} ${hh}:${min}:${sec}`;
+  };
+
   if (typeof val === 'string') {
     const dateMatch = val.match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
 
     if (dateMatch) {
-      return new Date(
+      return formatDate(new Date(
         +dateMatch[1],
         +dateMatch[2],
         +dateMatch[3],
         +(dateMatch[4] || 0),
         +(dateMatch[5] || 0)
-      ).toLocaleString('en-IN');
+      ));
+    }
+
+    if (val.includes('/') && (val.includes('AM') || val.includes('PM') || val.includes(':'))) {
+      try {
+        const date = new Date(val);
+        if (!Number.isNaN(date.getTime())) {
+          return formatDate(date);
+        }
+      } catch {
+        return val;
+      }
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(val)) {
+      return val;
     }
 
     return val;
   }
 
   if (typeof val === 'number') {
-    if (cell.f !== null && cell.f !== undefined && String(cell.f).trim() !== '') {
-      return String(cell.f);
-    }
-
-    if (val > 100000000000) {
-      return new Date(val).toLocaleString('en-IN');
-    }
-
-    return String(val);
-  }
-
-  if (cell.f !== null && cell.f !== undefined && String(cell.f).trim() !== '') {
-    return String(cell.f);
+    return formatDate(new Date(val));
   }
 
   if (val instanceof Date) {
-    return new Date(val).toLocaleString('en-IN');
+    return formatDate(val);
+  }
+
+  if (cell.f) {
+    return String(cell.f);
   }
 
   return String(val);
