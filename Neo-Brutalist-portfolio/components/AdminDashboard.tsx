@@ -53,7 +53,15 @@ function getMonthLabel(date = new Date()): string {
 }
 
 function parseCell(cell: GvizCell | null): string {
-  if (!cell || cell.v === null || cell.v === undefined) {
+  if (!cell) {
+    return '';
+  }
+
+  if (cell.f !== null && cell.f !== undefined && String(cell.f).trim() !== '' && (cell.v === null || cell.v === undefined)) {
+    return String(cell.f);
+  }
+
+  if (cell.v === null || cell.v === undefined) {
     return '';
   }
 
@@ -76,15 +84,23 @@ function parseCell(cell: GvizCell | null): string {
   }
 
   if (typeof val === 'number') {
-    return new Date(val).toLocaleString('en-IN');
+    if (cell.f !== null && cell.f !== undefined && String(cell.f).trim() !== '') {
+      return String(cell.f);
+    }
+
+    if (val > 100000000000) {
+      return new Date(val).toLocaleString('en-IN');
+    }
+
+    return String(val);
+  }
+
+  if (cell.f !== null && cell.f !== undefined && String(cell.f).trim() !== '') {
+    return String(cell.f);
   }
 
   if (val instanceof Date) {
-    return val.toLocaleString('en-IN');
-  }
-
-  if (cell.f) {
-    return String(cell.f);
+    return new Date(val).toLocaleString('en-IN');
   }
 
   return String(val);
@@ -102,8 +118,8 @@ async function parseGvizResponse(url: string): Promise<string[][]> {
     }
 
     return json.table.rows
-      .filter((row) => row.c && row.c.some((cell) => cell && cell.v !== null))
-      .map((row) => row.c.map((cell) => parseCell(cell)));
+      .map((row) => row.c.map((cell) => parseCell(cell)))
+      .filter((row) => row.some((cell) => cell.trim() !== ''));
   } catch {
     return [];
   }
