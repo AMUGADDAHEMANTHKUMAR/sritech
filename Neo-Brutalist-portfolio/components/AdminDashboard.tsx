@@ -12,6 +12,7 @@ interface SheetRecord {
 }
 
 interface GvizCell {
+  f?: unknown;
   v?: unknown;
 }
 
@@ -56,31 +57,53 @@ function parseCell(cell: GvizCell | null): string {
     return '';
   }
 
-  const val = String(cell.v);
-  const dateMatch = val.match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
+  const val = cell.v;
 
-  if (dateMatch) {
-    const [, y, m, d, h = '0', min = '0'] = dateMatch;
-    const date = new Date(+y, +m, +d, +h, +min);
-    return date.toLocaleString('en-IN');
+  if (typeof val === 'string') {
+    const dateMatch = val.match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
+
+    if (dateMatch) {
+      return new Date(
+        +dateMatch[1],
+        +dateMatch[2],
+        +dateMatch[3],
+        +(dateMatch[4] || 0),
+        +(dateMatch[5] || 0)
+      ).toLocaleString('en-IN');
+    }
+
+    return val;
   }
 
-  return val;
+  if (typeof val === 'number') {
+    return new Date(val).toLocaleString('en-IN');
+  }
+
+  if (val instanceof Date) {
+    return val.toLocaleString('en-IN');
+  }
+
+  if (cell.f) {
+    return String(cell.f);
+  }
+
+  return String(val);
 }
 
 async function parseGvizResponse(url: string): Promise<string[][]> {
   try {
     const res = await fetch(url);
     const text = await res.text();
-    const json = JSON.parse(text.substring(47).slice(0, -2)) as GvizResponse;
+    const clean = text.substring(47).slice(0, -2);
+    const json = JSON.parse(clean) as GvizResponse;
 
     if (!json.table || !json.table.rows || json.table.rows.length === 0) {
       return [];
     }
 
     return json.table.rows
-      .map((row) => row.c.map((cell) => parseCell(cell)))
-      .filter((row) => row.some((cell) => cell.trim() !== ''));
+      .filter((row) => row.c && row.c.some((cell) => cell && cell.v !== null))
+      .map((row) => row.c.map((cell) => parseCell(cell)));
   } catch {
     return [];
   }
