@@ -27,18 +27,36 @@ interface GvizResponse {
 
 const ADMIN_PASSWORD = 'sritech@admin2024';
 const ADMIN_SESSION_KEY = 'sritech-admin-authenticated';
-
-const SHEET_URLS: Record<AdminTab, string> = {
-  beginners: 'https://docs.google.com/spreadsheets/d/1Il79grI54I4et2J4v-66POCiOE5g0QAouNHuN8jndQ8/gviz/tq?tqx=out:json&sheet=Beginners',
-  professionals: 'https://docs.google.com/spreadsheets/d/1Il79grI54I4et2J4v-66POCiOE5g0QAouNHuN8jndQ8/gviz/tq?tqx=out:json&sheet=Professionals',
-  contacts: 'https://docs.google.com/spreadsheets/d/1Il79grI54I4et2J4v-66POCiOE5g0QAouNHuN8jndQ8/gviz/tq?tqx=out:json&sheet=Contacts'
-};
+const SHEET_ID = '1Il79grI54I4et2J4v-66POCiOE5g0QAouNHuN8jndQ8';
+const availableMonths = [
+  'Apr 2026',
+  'Mar 2026',
+  'Feb 2026',
+  'Jan 2026',
+  'Dec 2025',
+  'Nov 2025',
+  'Oct 2025'
+] as const;
 
 const tabLabels: Record<AdminTab, string> = {
   beginners: 'Beginners',
   professionals: 'Professionals',
   contacts: 'Contacts'
 };
+
+function getMonthLabel(): string {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const now = new Date();
+  return `${months[now.getMonth()]} ${now.getFullYear()}`;
+}
+
+function getSheetUrls(month: string): Record<AdminTab, string> {
+  return {
+    beginners: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Beginners - ${month}`,
+    professionals: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Professionals - ${month}`,
+    contacts: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Contacts - ${month}`
+  };
+}
 
 function cellToString(value: unknown): string {
   if (value === null || value === undefined) {
@@ -74,11 +92,27 @@ function mapContactRow(row: string[]): SheetRecord {
   };
 }
 
+async function fetchSheetRecords(tab: AdminTab, month: string): Promise<SheetRecord[]> {
+  const sheetUrls = getSheetUrls(month);
+
+  try {
+    const response = await fetch(sheetUrls[tab]);
+    const text = await response.text();
+    const rows = parseRows(text);
+    return tab === 'contacts' ? rows.map(mapContactRow) : rows.map(mapEnrollmentRow);
+  } catch (error) {
+    return [];
+  }
+}
+
 export default function AdminDashboard() {
+  const currentMonth = getMonthLabel();
+  const monthOptions = [currentMonth, ...availableMonths.filter((month) => month !== currentMonth)];
   const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState<AdminTab>('beginners');
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [beginners, setBeginners] = useState<SheetRecord[]>([]);
   const [professionals, setProfessionals] = useState<SheetRecord[]>([]);
   const [contacts, setContacts] = useState<SheetRecord[]>([]);
@@ -115,19 +149,19 @@ export default function AdminDashboard() {
       setFetchError('');
 
       try {
-        const [beginnerText, professionalText, contactText] = await Promise.all([
-          fetch(SHEET_URLS.beginners).then((response) => response.text()),
-          fetch(SHEET_URLS.professionals).then((response) => response.text()),
-          fetch(SHEET_URLS.contacts).then((response) => response.text())
+        const [beginnerRows, professionalRows, contactRows] = await Promise.all([
+          fetchSheetRecords('beginners', selectedMonth),
+          fetchSheetRecords('professionals', selectedMonth),
+          fetchSheetRecords('contacts', selectedMonth)
         ]);
 
         if (!isMounted) {
           return;
         }
 
-        setBeginners(parseRows(beginnerText).map(mapEnrollmentRow));
-        setProfessionals(parseRows(professionalText).map(mapEnrollmentRow));
-        setContacts(parseRows(contactText).map(mapContactRow));
+        setBeginners(beginnerRows);
+        setProfessionals(professionalRows);
+        setContacts(contactRows);
       } catch (error) {
         if (isMounted) {
           setFetchError('Unable to load dashboard data. Please try again.');
@@ -144,7 +178,7 @@ export default function AdminDashboard() {
     return () => {
       isMounted = false;
     };
-  }, [isLoggedIn]);
+  }, [isLoggedIn, selectedMonth]);
 
   const handleLogin = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -212,9 +246,28 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-[#050505] px-4 py-8 text-white md:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col gap-4 border-b border-white/15 pb-6 md:flex-row md:items-center md:justify-between">
-          <h1 className="font-heading text-3xl font-black uppercase leading-none text-white md:text-5xl">
-            SRITECH Admin Dashboard
-          </h1>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
+            <h1 className="font-heading text-3xl font-black uppercase leading-none text-white md:text-5xl">
+              SRITECH Admin Dashboard
+            </h1>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="month-selector" className="text-xs font-mono uppercase tracking-[0.3em] text-gray-500">
+                Month
+              </label>
+              <select
+                id="month-selector"
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(event.target.value)}
+                className="h-11 border border-white/20 bg-[#111] px-4 text-sm text-white outline-none transition-colors focus:border-white"
+              >
+                {monthOptions.map((month) => (
+                  <option key={month} value={month} className="bg-[#111]">
+                    {month}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <button
             type="button"
             onClick={handleLogout}
@@ -259,14 +312,14 @@ export default function AdminDashboard() {
         <div className="overflow-hidden border border-white/15 bg-[#0b0b0b]">
           <div className="border-b border-white/15 p-5">
             <h2 className="font-heading text-2xl font-black uppercase text-white">
-              {tabLabels[activeTab]} Data
+              {tabLabels[activeTab]} Data - {selectedMonth}
             </h2>
           </div>
 
           {isLoading && <p className="p-6 text-gray-400">Loading...</p>}
           {fetchError && !isLoading && <p className="p-6 text-red-400">{fetchError}</p>}
           {!isLoading && !fetchError && currentRows.length === 0 && (
-            <p className="p-6 text-gray-400">No data found</p>
+            <p className="p-6 text-gray-400">No data found for this month</p>
           )}
 
           {!isLoading && !fetchError && currentRows.length > 0 && (
