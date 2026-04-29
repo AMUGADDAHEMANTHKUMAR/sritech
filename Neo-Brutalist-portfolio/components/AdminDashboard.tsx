@@ -34,8 +34,7 @@ const availableMonths = [
   'Feb 2026',
   'Jan 2026',
   'Dec 2025',
-  'Nov 2025',
-  'Oct 2025'
+  'Nov 2025'
 ] as const;
 
 const tabLabels: Record<AdminTab, string> = {
@@ -44,31 +43,34 @@ const tabLabels: Record<AdminTab, string> = {
   contacts: 'Contacts'
 };
 
-function getMonthLabel(): string {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const now = new Date();
-  return `${months[now.getMonth()]} ${now.getFullYear()}`;
+function getMonthLabel(date = new Date()): string {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  return `${months[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function getSheetUrls(month: string): Record<AdminTab, string> {
-  return {
-    beginners: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Beginners - ${month}`,
-    professionals: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Professionals - ${month}`,
-    contacts: `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Contacts - ${month}`
-  };
-}
-
-function cellToString(value: unknown): string {
-  if (value === null || value === undefined) {
+function parseCell(cell: GvizCell | null): string {
+  if (!cell || cell.v === null || cell.v === undefined) {
     return '';
   }
 
-  return String(value);
+  const val = String(cell.v);
+  const dateMatch = val.match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
+
+  if (dateMatch) {
+    const [, y, m, d, h = '0', min = '0'] = dateMatch;
+    const date = new Date(+y, +m, +d, +h, +min);
+    return date.toLocaleString('en-IN');
+  }
+
+  return val;
 }
 
 function parseRows(text: string): string[][] {
   const json = JSON.parse(text.substring(47).slice(0, -2)) as GvizResponse;
-  return json.table.rows.map((row) => row.c.map((cell) => cellToString(cell?.v ?? '')));
+  return json.table.rows.map((row) => row.c.map((cell) => parseCell(cell)));
 }
 
 function mapEnrollmentRow(row: string[]): SheetRecord {
@@ -93,7 +95,14 @@ function mapContactRow(row: string[]): SheetRecord {
 }
 
 async function fetchSheetRecords(tab: AdminTab, month: string): Promise<SheetRecord[]> {
-  const sheetUrls = getSheetUrls(month);
+  const beginnerURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Beginners - ${month}`;
+  const professionalURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Professionals - ${month}`;
+  const contactURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Contacts - ${month}`;
+  const sheetUrls: Record<AdminTab, string> = {
+    beginners: beginnerURL,
+    professionals: professionalURL,
+    contacts: contactURL
+  };
 
   try {
     const response = await fetch(sheetUrls[tab]);
@@ -105,19 +114,46 @@ async function fetchSheetRecords(tab: AdminTab, month: string): Promise<SheetRec
   }
 }
 
+function rowToCsvValues(row: SheetRecord, tab: AdminTab): string[] {
+  if (tab === 'contacts') {
+    return [row.timestamp, row.name, row.email, row.phone, row.message];
+  }
+
+  return [row.timestamp, row.name, row.email, row.phone, row.course ?? '', row.message];
+}
+
+function downloadCSV(rows: string[][], filename: string, activeTab: AdminTab): void {
+  const headers = activeTab === 'contacts'
+    ? ['Timestamp', 'Full Name', 'Email', 'Phone', 'Message']
+    : ['Timestamp', 'Full Name', 'Email', 'Phone', 'Course', 'Message'];
+  const csvContent = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function AdminDashboard() {
   const currentMonth = getMonthLabel();
-  const monthOptions = [currentMonth, ...availableMonths.filter((month) => month !== currentMonth)];
+  const monthOptions = availableMonths.includes(currentMonth as (typeof availableMonths)[number])
+    ? [...availableMonths]
+    : [currentMonth, ...availableMonths];
   const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState<AdminTab>('beginners');
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedMonth, setSelectedMonth] = useState('April 2026');
   const [beginners, setBeginners] = useState<SheetRecord[]>([]);
   const [professionals, setProfessionals] = useState<SheetRecord[]>([]);
   const [contacts, setContacts] = useState<SheetRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     setPassword('');
@@ -136,6 +172,10 @@ export default function AdminDashboard() {
 
     return contacts;
   }, [activeTab, beginners, contacts, professionals]);
+
+  useEffect(() => {
+    setSelectedRows(new Set());
+  }, [activeTab, selectedMonth]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -199,6 +239,54 @@ export default function AdminDashboard() {
     setIsLoggedIn(false);
     setPassword('');
     setLoginError('');
+  };
+
+  const allCurrentRowsSelected = currentRows.length > 0 && selectedRows.size === currentRows.length;
+
+  const handleToggleRow = (rowIndex: number) => {
+    setSelectedRows((currentSelection) =>
+      {
+        const nextSelection = new Set(currentSelection);
+
+        if (nextSelection.has(rowIndex)) {
+          nextSelection.delete(rowIndex);
+        } else {
+          nextSelection.add(rowIndex);
+        }
+
+        return nextSelection;
+      }
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    setSelectedRows((currentSelection) =>
+      currentSelection.size === currentRows.length
+        ? new Set<number>()
+        : new Set(currentRows.map((_, index) => index))
+    );
+  };
+
+  const handleDownloadAll = () => {
+    const csvRows = currentRows.map((row) => rowToCsvValues(row, activeTab));
+    const fileTabLabel = tabLabels[activeTab];
+    const fileMonthLabel = selectedMonth.replace(/\s+/g, '-');
+    downloadCSV(csvRows, `SRITECH-${fileTabLabel}-${fileMonthLabel}.csv`, activeTab);
+  };
+
+  const handleDownloadSelected = () => {
+    const rowsToExport = currentRows
+      .filter((_, index) => selectedRows.has(index))
+      .map((row) => rowToCsvValues(row, activeTab));
+
+    if (rowsToExport.length === 0) {
+      return;
+    }
+
+    const fileTabLabel = tabLabels[activeTab];
+    const fileMonthLabel = selectedMonth.replace(/\s+/g, '-');
+    downloadCSV(rowsToExport, `SRITECH-${fileTabLabel}-${fileMonthLabel}.csv`, activeTab);
+    setSelectedRows(new Set());
   };
 
   if (!isLoggedIn) {
@@ -267,6 +355,13 @@ export default function AdminDashboard() {
                 ))}
               </select>
             </div>
+            <button
+              type="button"
+              onClick={handleDownloadAll}
+              className="h-11 border border-white/30 px-6 text-xs font-bold uppercase tracking-[0.25em] text-white transition-colors hover:bg-white hover:text-black md:self-end"
+            >
+              Download All
+            </button>
           </div>
           <button
             type="button"
@@ -310,16 +405,25 @@ export default function AdminDashboard() {
         </div>
 
         <div className="overflow-hidden border border-white/15 bg-[#0b0b0b]">
-          <div className="border-b border-white/15 p-5">
+          <div className="flex flex-col gap-4 border-b border-white/15 p-5 md:flex-row md:items-center md:justify-between">
             <h2 className="font-heading text-2xl font-black uppercase text-white">
               {tabLabels[activeTab]} Data - {selectedMonth}
             </h2>
+            {selectedRows.size > 0 && (
+              <button
+                type="button"
+                onClick={handleDownloadSelected}
+                className="h-11 self-start border border-white bg-white px-6 text-xs font-bold uppercase tracking-[0.25em] text-black transition-colors hover:bg-transparent hover:text-white md:self-auto"
+              >
+                Download Selected
+              </button>
+            )}
           </div>
 
           {isLoading && <p className="p-6 text-gray-400">Loading...</p>}
           {fetchError && !isLoading && <p className="p-6 text-red-400">{fetchError}</p>}
           {!isLoading && !fetchError && currentRows.length === 0 && (
-            <p className="p-6 text-gray-400">No data found for this month</p>
+            <p className="p-6 text-gray-400">No data found</p>
           )}
 
           {!isLoading && !fetchError && currentRows.length > 0 && (
@@ -327,7 +431,14 @@ export default function AdminDashboard() {
               <table className="w-full min-w-[900px] border-collapse text-left text-sm">
                 <thead className="bg-[#111] text-xs uppercase tracking-wider text-gray-400">
                   <tr>
-                    <th className="px-4 py-4">#</th>
+                    <th className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={allCurrentRowsSelected}
+                        onChange={handleToggleSelectAll}
+                        className="h-4 w-4 accent-white"
+                      />
+                    </th>
                     <th className="px-4 py-4">Timestamp</th>
                     <th className="px-4 py-4">Full Name</th>
                     <th className="px-4 py-4">Email</th>
@@ -339,7 +450,14 @@ export default function AdminDashboard() {
                 <tbody>
                   {currentRows.map((row, index) => (
                     <tr key={`${activeTab}-${index}-${row.email}-${row.phone}`} className={index % 2 === 0 ? 'bg-[#080808]' : 'bg-[#101010]'}>
-                      <td className="px-4 py-4 text-gray-400">{index + 1}</td>
+                      <td className="px-4 py-4 text-gray-400">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.has(index)}
+                          onChange={() => handleToggleRow(index)}
+                          className="h-4 w-4 accent-white"
+                        />
+                      </td>
                       <td className="px-4 py-4 text-gray-300">{row.timestamp}</td>
                       <td className="px-4 py-4 text-white">{row.name}</td>
                       <td className="px-4 py-4 text-gray-300">{row.email}</td>
