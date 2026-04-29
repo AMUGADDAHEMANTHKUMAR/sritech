@@ -68,9 +68,22 @@ function parseCell(cell: GvizCell | null): string {
   return val;
 }
 
-function parseRows(text: string): string[][] {
-  const json = JSON.parse(text.substring(47).slice(0, -2)) as GvizResponse;
-  return json.table.rows.map((row) => row.c.map((cell) => parseCell(cell)));
+async function parseGvizResponse(url: string): Promise<string[][]> {
+  try {
+    const res = await fetch(url);
+    const text = await res.text();
+    const json = JSON.parse(text.substring(47).slice(0, -2)) as GvizResponse;
+
+    if (!json.table || !json.table.rows || json.table.rows.length === 0) {
+      return [];
+    }
+
+    return json.table.rows
+      .map((row) => row.c.map((cell) => parseCell(cell)))
+      .filter((row) => row.some((cell) => cell.trim() !== ''));
+  } catch {
+    return [];
+  }
 }
 
 function mapEnrollmentRow(row: string[]): SheetRecord {
@@ -104,14 +117,8 @@ async function fetchSheetRecords(tab: AdminTab, month: string): Promise<SheetRec
     contacts: contactURL
   };
 
-  try {
-    const response = await fetch(sheetUrls[tab]);
-    const text = await response.text();
-    const rows = parseRows(text);
-    return tab === 'contacts' ? rows.map(mapContactRow) : rows.map(mapEnrollmentRow);
-  } catch (error) {
-    return [];
-  }
+  const rows = await parseGvizResponse(sheetUrls[tab]);
+  return tab === 'contacts' ? rows.map(mapContactRow) : rows.map(mapEnrollmentRow);
 }
 
 function rowToCsvValues(row: SheetRecord, tab: AdminTab): string[] {
@@ -154,6 +161,9 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const totalBeginners = beginners.length;
+  const totalProfessionals = professionals.length;
+  const totalContacts = contacts.length;
 
   useEffect(() => {
     setPassword('');
@@ -185,31 +195,34 @@ export default function AdminDashboard() {
     let isMounted = true;
 
     const fetchDashboardData = async () => {
+      if (!isMounted) {
+        return;
+      }
+
+      setBeginners([]);
+      setProfessionals([]);
+      setContacts([]);
+      setSelectedRows(new Set());
       setIsLoading(true);
       setFetchError('');
 
-      try {
-        const [beginnerRows, professionalRows, contactRows] = await Promise.all([
-          fetchSheetRecords('beginners', selectedMonth),
-          fetchSheetRecords('professionals', selectedMonth),
-          fetchSheetRecords('contacts', selectedMonth)
-        ]);
+      const [beginnerRows, professionalRows, contactRows] = await Promise.all([
+        fetchSheetRecords('beginners', selectedMonth),
+        fetchSheetRecords('professionals', selectedMonth),
+        fetchSheetRecords('contacts', selectedMonth)
+      ]);
 
-        if (!isMounted) {
-          return;
-        }
+      if (!isMounted) {
+        return;
+      }
 
-        setBeginners(beginnerRows);
-        setProfessionals(professionalRows);
-        setContacts(contactRows);
-      } catch (error) {
-        if (isMounted) {
-          setFetchError('Unable to load dashboard data. Please try again.');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+      setBeginners(beginnerRows);
+      setProfessionals(professionalRows);
+      setContacts(contactRows);
+      setIsLoading(false);
+
+      if (beginnerRows.length === 0 && professionalRows.length === 0 && contactRows.length === 0) {
+        setFetchError(`No data found for ${selectedMonth}`);
       }
     };
 
@@ -333,43 +346,40 @@ export default function AdminDashboard() {
   return (
     <main className="min-h-screen bg-[#050505] px-4 py-8 text-white md:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-4 border-b border-white/15 pb-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
+        <div className="mb-8 flex items-center justify-between gap-4 border-b border-white/15 pb-6">
+          <div className="min-w-0">
             <h1 className="font-heading text-3xl font-black uppercase leading-none text-white md:text-5xl">
               SRITECH Admin Dashboard
             </h1>
-            <div className="flex flex-col gap-2">
-              <label htmlFor="month-selector" className="text-xs font-mono uppercase tracking-[0.3em] text-gray-500">
-                Month
-              </label>
-              <select
-                id="month-selector"
-                value={selectedMonth}
-                onChange={(event) => setSelectedMonth(event.target.value)}
-                className="h-11 border border-white/20 bg-[#111] px-4 text-sm text-white outline-none transition-colors focus:border-white"
-              >
-                {monthOptions.map((month) => (
-                  <option key={month} value={month} className="bg-[#111]">
-                    {month}
-                  </option>
-                ))}
-              </select>
-            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <select
+              id="month-selector"
+              value={selectedMonth}
+              onChange={(event) => setSelectedMonth(event.target.value)}
+              className="h-11 border border-white/20 bg-[#111] px-4 text-sm text-white outline-none transition-colors focus:border-white"
+            >
+              {monthOptions.map((month) => (
+                <option key={month} value={month} className="bg-[#111]">
+                  {month}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={handleDownloadAll}
-              className="h-11 border border-white/30 px-6 text-xs font-bold uppercase tracking-[0.25em] text-white transition-colors hover:bg-white hover:text-black md:self-end"
+              className="h-11 border border-white/30 px-6 text-xs font-bold uppercase tracking-[0.25em] text-white transition-colors hover:bg-white hover:text-black"
             >
               Download All
             </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="h-11 border border-white/30 px-6 text-xs font-bold uppercase tracking-[0.25em] text-white transition-colors hover:bg-white hover:text-black"
+            >
+              Logout
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="h-11 border border-white/30 px-6 text-xs font-bold uppercase tracking-[0.25em] text-white transition-colors hover:bg-white hover:text-black"
-          >
-            Logout
-          </button>
         </div>
 
         <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -392,15 +402,15 @@ export default function AdminDashboard() {
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="border border-white/15 bg-[#0b0b0b] p-5">
             <p className="mb-2 text-xs font-mono uppercase tracking-widest text-gray-500">Total Beginners</p>
-            <p className="font-heading text-4xl font-black text-white">{beginners.length}</p>
+            <p className="font-heading text-4xl font-black text-white">{totalBeginners}</p>
           </div>
           <div className="border border-white/15 bg-[#0b0b0b] p-5">
             <p className="mb-2 text-xs font-mono uppercase tracking-widest text-gray-500">Total Professionals</p>
-            <p className="font-heading text-4xl font-black text-white">{professionals.length}</p>
+            <p className="font-heading text-4xl font-black text-white">{totalProfessionals}</p>
           </div>
           <div className="border border-white/15 bg-[#0b0b0b] p-5">
             <p className="mb-2 text-xs font-mono uppercase tracking-widest text-gray-500">Total Contacts</p>
-            <p className="font-heading text-4xl font-black text-white">{contacts.length}</p>
+            <p className="font-heading text-4xl font-black text-white">{totalContacts}</p>
           </div>
         </div>
 
@@ -421,9 +431,9 @@ export default function AdminDashboard() {
           </div>
 
           {isLoading && <p className="p-6 text-gray-400">Loading...</p>}
-          {fetchError && !isLoading && <p className="p-6 text-red-400">{fetchError}</p>}
+          {fetchError && !isLoading && <p className="p-6 text-gray-400">{fetchError}</p>}
           {!isLoading && !fetchError && currentRows.length === 0 && (
-            <p className="p-6 text-gray-400">No data found</p>
+            <p className="p-6 text-gray-400">No data found for {selectedMonth}</p>
           )}
 
           {!isLoading && !fetchError && currentRows.length > 0 && (
