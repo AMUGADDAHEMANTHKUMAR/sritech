@@ -7,7 +7,7 @@ interface ContactErrors {
   message?: string;
 }
 
-const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzErh4NHpts6H7WruQZIUe9i7Oo5SgpfgGRRuPoNbMq510VyqKhbsVZC3SQ4ksxqsP3UQ/exec';
+const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyXc2vMEIdd9tcsVo_pOcUwijMphbbSmEsOup4_8B-pdgofobPmlyt3gdeG4HU2Y6jAZQ/exec';
 const WHATSAPP_NUMBER = '919494712989';
 
 export default function ContactForm() {

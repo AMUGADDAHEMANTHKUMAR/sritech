@@ -9,7 +9,7 @@ interface FormErrors {
 }
 
 const BUSINESS_WHATSAPP_NUMBER = '919494712989';
-const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbw-9plED1wgPMQmnRtDuw3FooKLWSHPS7k94A8fx7tNZCzSUjhA5Dh46ouGoYDhaWSy_Q/exec';
+const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyXc2vMEIdd9tcsVo_pOcUwijMphbbSmEsOup4_8B-pdgofobPmlyt3gdeG4HU2Y6jAZQ/exec';
 
 function getSelectedPathFromState(state: unknown): SelectedPath | null {
   if (!state || typeof state !== 'object' || !('selectedPath' in state)) {
