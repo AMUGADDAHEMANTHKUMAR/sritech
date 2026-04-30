@@ -36,29 +36,30 @@ const tabLabels: Record<AdminTab, string> = {
   contacts: 'Contacts'
 };
 
+const adminTabs: AdminTab[] = ['beginners', 'professionals', 'contacts'];
+const monthNames = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 function getMonthLabel(date = new Date()): string {
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  return `${months[date.getMonth()]} ${date.getFullYear()}`;
+  return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function generateMonthOptions(): string[] {
-  const months = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December'
-  ];
+function generateMonthCandidates(): string[] {
   const now = new Date();
   const options: string[] = [];
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 36; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    options.push(`${months[d.getMonth()]} ${d.getFullYear()}`);
+    options.push(`${monthNames[d.getMonth()]} ${d.getFullYear()}`);
   }
   return options;
 }
 
-const availableMonths = generateMonthOptions();
+function getMonthSortValue(monthLabel: string): number {
+  const [month, year] = monthLabel.split(' ');
+  return Number(year) * 12 + monthNames.indexOf(month);
+}
 
 function parseCell(cell: GvizCell | null): string {
   if (!cell || cell.v === null || cell.v === undefined) {
@@ -172,19 +173,72 @@ function mapContactRow(row: string[]): SheetRecord {
   };
 }
 
-async function fetchSheetRecords(tab: AdminTab, selectedMonth: string): Promise<SheetRecord[]> {
+function getSheetUrl(tab: AdminTab, selectedMonth: string, query?: string): string {
   const sheetNames: Record<AdminTab, string> = {
     beginners: `Beginners - ${selectedMonth}`,
     professionals: `Professionals - ${selectedMonth}`,
     contacts: `Contacts - ${selectedMonth}`
   };
   const encodedSheet = encodeURIComponent(sheetNames[tab]);
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodedSheet}`;
+  const encodedQuery = query ? `&tq=${encodeURIComponent(query)}` : '';
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodedSheet}${encodedQuery}`;
+}
+
+async function fetchSheetRecords(tab: AdminTab, selectedMonth: string): Promise<SheetRecord[]> {
+  const url = getSheetUrl(tab, selectedMonth);
   const rows = await parseGvizResponse(url);
 
   if (rows.length === 0) return [];
 
   return tab === 'contacts' ? rows.map(mapContactRow) : rows.map(mapEnrollmentRow);
+}
+
+async function fetchSheetTabMonths(): Promise<string[]> {
+  try {
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit?usp=sharing`);
+    if (!res.ok) return [];
+
+    const text = await res.text();
+    const monthPattern = monthNames.join('|');
+    const matches = text.matchAll(new RegExp(`(?:Beginners|Professionals|Contacts) - (${monthPattern}) (\\d{4})`, 'g'));
+    const months = new Set<string>();
+
+    for (const match of matches) {
+      months.add(`${match[1]} ${match[2]}`);
+    }
+
+    return [...months].sort((a, b) => getMonthSortValue(b) - getMonthSortValue(a));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchAvailableMonths(): Promise<string[]> {
+  const currentMonth = getMonthLabel();
+  const tabMonths = await fetchSheetTabMonths();
+
+  if (tabMonths.length > 0) {
+    return [currentMonth, ...tabMonths.filter((month) => month !== currentMonth)];
+  }
+
+  const months = generateMonthCandidates();
+  const availableMonths = new Set<string>([currentMonth]);
+
+  await Promise.all(months.map(async (month) => {
+    if (month === currentMonth) {
+      return;
+    }
+
+    const checks = await Promise.all(
+      adminTabs.map((tab) => parseGvizResponse(getSheetUrl(tab, month, 'select A limit 1')))
+    );
+
+    if (checks.some((rows) => rows.length > 0)) {
+      availableMonths.add(month);
+    }
+  }));
+
+  return months.filter((month) => availableMonths.has(month));
 }
 
 function rowToCsvValues(row: SheetRecord, tab: AdminTab): string[] {
@@ -212,12 +266,12 @@ function downloadCSV(rows: string[][], filename: string, activeTab: AdminTab): v
 }
 
 export default function AdminDashboard() {
-  const monthOptions = availableMonths;
   const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState<AdminTab>('beginners');
   const [selectedMonth, setSelectedMonth] = useState(getMonthLabel());
+  const [monthOptions, setMonthOptions] = useState<string[]>([getMonthLabel()]);
   const [beginnerData, setBeginnerData] = useState<SheetRecord[]>([]);
   const [professionalData, setProfessionalData] = useState<SheetRecord[]>([]);
   const [contactData, setContactData] = useState<SheetRecord[]>([]);
@@ -250,6 +304,28 @@ export default function AdminDashboard() {
   useEffect(() => {
     setSelectedRows(new Set());
   }, [activeTab, selectedMonth]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadMonthOptions = async () => {
+      const months = await fetchAvailableMonths();
+
+      if (isMounted) {
+        setMonthOptions(months);
+      }
+    };
+
+    void loadMonthOptions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn]);
 
   const fetchAllData = async (requestId: number) => {
     setLoading(true);
