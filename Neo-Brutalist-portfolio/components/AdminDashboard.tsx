@@ -115,7 +115,21 @@ function parseCell(cell: GvizCell | null): string {
   return String(val);
 }
 
-async function parseGvizResponse(url: string): Promise<string[][]> {
+const parseRow = (row: Array<GvizCell | null>, isContact: boolean) => {
+  return row.map((cell, index) => {
+    if (index === 0) {
+      return parseCell(cell);
+    }
+
+    if (!cell || cell.v === null || cell.v === undefined) {
+      return '';
+    }
+
+    return String(cell.f || cell.v);
+  });
+};
+
+async function parseGvizResponse(url: string, isContact: boolean): Promise<string[][]> {
   try {
     const res = await fetch(url);
     const text = await res.text();
@@ -127,7 +141,7 @@ async function parseGvizResponse(url: string): Promise<string[][]> {
     }
 
     return json.table.rows
-      .map((row) => row.c.map((cell) => parseCell(cell)))
+      .map((row) => parseRow(row.c, isContact))
       .filter((row) => row.some((cell) => cell.trim() !== ''));
   } catch {
     return [];
@@ -165,7 +179,7 @@ async function fetchSheetRecords(tab: AdminTab, selectedMonth: string): Promise<
     contacts: contactURL
   };
 
-  const rows = await parseGvizResponse(sheetUrls[tab]);
+  const rows = await parseGvizResponse(sheetUrls[tab], tab === 'contacts');
   return tab === 'contacts' ? rows.map(mapContactRow) : rows.map(mapEnrollmentRow);
 }
 
@@ -253,10 +267,6 @@ export default function AdminDashboard() {
     setProfessionalData(professionals);
     setContactData(contacts);
     setLoading(false);
-
-    if (beginners.length === 0 && professionals.length === 0 && contacts.length === 0) {
-      setFetchError(`No data found for ${selectedMonth}`);
-    }
   };
 
   useEffect(() => {
@@ -264,6 +274,10 @@ export default function AdminDashboard() {
       return;
     }
 
+    setBeginnerData([]);
+    setProfessionalData([]);
+    setContactData([]);
+    setLoading(true);
     void fetchAll();
   }, [isLoggedIn, selectedMonth]);
 
@@ -469,8 +483,16 @@ export default function AdminDashboard() {
 
           {loading && <p className="p-6 text-gray-400">Loading...</p>}
           {fetchError && !loading && <p className="p-6 text-gray-400">{fetchError}</p>}
-          {!loading && !fetchError && currentData.length === 0 && (
-            <p className="p-6 text-gray-400">No data found for {selectedMonth}</p>
+          {currentData.length === 0 && !loading && (
+            <div style={{
+              textAlign: 'center',
+              padding: '60px 20px',
+              color: '#666',
+              fontSize: '16px',
+              letterSpacing: '2px'
+            }}>
+              NO DATA AVAILABLE FOR {selectedMonth.toUpperCase()}
+            </div>
           )}
 
           {!loading && !fetchError && currentData.length > 0 && (
