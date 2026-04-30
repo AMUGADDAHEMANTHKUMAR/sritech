@@ -29,14 +29,6 @@ interface GvizResponse {
 const ADMIN_PASSWORD = 'sritech@admin2024';
 const ADMIN_SESSION_KEY = 'sritech-admin-authenticated';
 const SHEET_ID = '1Il79grI54I4et2J4v-66POCiOE5g0QAouNHuN8jndQ8';
-const availableMonths = [
-  'April 2026',
-  'March 2026',
-  'February 2026',
-  'January 2026',
-  'December 2025',
-  'November 2025'
-] as const;
 
 const tabLabels: Record<AdminTab, string> = {
   beginners: 'Beginners',
@@ -51,6 +43,22 @@ function getMonthLabel(date = new Date()): string {
   ];
   return `${months[date.getMonth()]} ${date.getFullYear()}`;
 }
+
+function generateMonthOptions(): string[] {
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const now = new Date();
+  const options: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    options.push(`${months[d.getMonth()]} ${d.getFullYear()}`);
+  }
+  return options;
+}
+
+const availableMonths = generateMonthOptions();
 
 function parseCell(cell: GvizCell | null): string {
   if (!cell || cell.v === null || cell.v === undefined) {
@@ -207,15 +215,12 @@ function downloadCSV(rows: string[][], filename: string, activeTab: AdminTab): v
 }
 
 export default function AdminDashboard() {
-  const currentMonth = getMonthLabel();
-  const monthOptions = availableMonths.includes(currentMonth as (typeof availableMonths)[number])
-    ? [...availableMonths]
-    : [currentMonth, ...availableMonths];
+  const monthOptions = availableMonths;
   const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState<AdminTab>('beginners');
-  const [selectedMonth, setSelectedMonth] = useState('April 2026');
+  const [selectedMonth, setSelectedMonth] = useState(getMonthLabel());
   const [beginnerData, setBeginnerData] = useState<SheetRecord[]>([]);
   const [professionalData, setProfessionalData] = useState<SheetRecord[]>([]);
   const [contactData, setContactData] = useState<SheetRecord[]>([]);
@@ -496,7 +501,7 @@ export default function AdminDashboard() {
 
           {loading && <p className="p-6 text-gray-400">Loading...</p>}
           {fetchError && !loading && <p className="p-6 text-gray-400">{fetchError}</p>}
-          {currentData.length === 0 && !loading && (
+          {!loading && beginnerData.length === 0 && professionalData.length === 0 && contactData.length === 0 && (
             <div style={{
               textAlign: 'center',
               padding: '80px 20px',
