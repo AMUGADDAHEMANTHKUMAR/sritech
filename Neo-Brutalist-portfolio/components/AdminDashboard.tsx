@@ -1,4 +1,4 @@
-import React, { FormEvent, useEffect, useMemo, useState } from 'react';
+import React, { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 type AdminTab = 'beginners' | 'professionals' | 'contacts';
 
@@ -115,38 +115,29 @@ function parseCell(cell: GvizCell | null): string {
   return String(val);
 }
 
-const parseRow = (row: Array<GvizCell | null>, isContact: boolean) => {
-  return row.map((cell, index) => {
-    if (index === 0) {
-      return parseCell(cell);
-    }
-
-    if (!cell || cell.v === null || cell.v === undefined) {
-      return '';
-    }
-
-    return String(cell.f || cell.v);
-  });
-};
-
-async function parseGvizResponse(url: string, isContact: boolean): Promise<string[][]> {
+const parseGvizResponse = async (url: string): Promise<string[][]> => {
   try {
     const res = await fetch(url);
+    if (!res.ok) return [];
     const text = await res.text();
+    if (!text || text.length < 50) return [];
     const clean = text.substring(47).slice(0, -2);
-    const json = JSON.parse(clean) as GvizResponse;
-
-    if (!json.table || !json.table.rows || json.table.rows.length === 0) {
-      return [];
-    }
+    const json = JSON.parse(clean);
+    if (!json?.table?.rows?.length) return [];
 
     return json.table.rows
-      .map((row) => parseRow(row.c, isContact))
-      .filter((row) => row.some((cell) => cell.trim() !== ''));
+      .filter((row: GvizRow) => row?.c?.some((c) => c?.v !== null && c?.v !== undefined))
+      .map((row: GvizRow) =>
+        row.c.map((cell, index) => {
+          if (!cell || cell.v === null || cell.v === undefined) return '';
+          if (index === 0) return parseCell(cell);
+          return String(cell.f || cell.v);
+        })
+      );
   } catch {
     return [];
   }
-}
+};
 
 function mapEnrollmentRow(row: string[]): SheetRecord {
   return {
@@ -179,7 +170,7 @@ async function fetchSheetRecords(tab: AdminTab, selectedMonth: string): Promise<
     contacts: contactURL
   };
 
-  const rows = await parseGvizResponse(sheetUrls[tab], tab === 'contacts');
+  const rows = await parseGvizResponse(sheetUrls[tab]);
   return tab === 'contacts' ? rows.map(mapContactRow) : rows.map(mapEnrollmentRow);
 }
 
@@ -223,6 +214,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const fetchRequestId = useRef(0);
   const totalBeginners = beginnerData.length;
   const totalProfessionals = professionalData.length;
   const totalContacts = contactData.length;
@@ -249,7 +241,7 @@ export default function AdminDashboard() {
     setSelectedRows(new Set());
   }, [activeTab, selectedMonth]);
 
-  const fetchAll = async () => {
+  const fetchAllData = async (requestId: number) => {
     setLoading(true);
     setBeginnerData([]);
     setProfessionalData([]);
@@ -262,6 +254,10 @@ export default function AdminDashboard() {
       fetchSheetRecords('professionals', selectedMonth),
       fetchSheetRecords('contacts', selectedMonth)
     ]);
+
+    if (requestId !== fetchRequestId.current) {
+      return;
+    }
 
     setBeginnerData(beginners);
     setProfessionalData(professionals);
@@ -277,8 +273,17 @@ export default function AdminDashboard() {
     setBeginnerData([]);
     setProfessionalData([]);
     setContactData([]);
+    setSelectedRows(new Set());
     setLoading(true);
-    void fetchAll();
+
+    const requestId = fetchRequestId.current + 1;
+    fetchRequestId.current = requestId;
+
+    const timer = setTimeout(() => {
+      void fetchAllData(requestId);
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [isLoggedIn, selectedMonth]);
 
   const handleLogin = (event: FormEvent<HTMLFormElement>) => {
@@ -486,12 +491,13 @@ export default function AdminDashboard() {
           {currentData.length === 0 && !loading && (
             <div style={{
               textAlign: 'center',
-              padding: '60px 20px',
-              color: '#666',
-              fontSize: '16px',
-              letterSpacing: '2px'
+              padding: '80px 20px',
+              color: '#444',
+              fontSize: '14px',
+              letterSpacing: '3px',
+              textTransform: 'uppercase'
             }}>
-              NO DATA AVAILABLE FOR {selectedMonth.toUpperCase()}
+              ⚠ No data available for {selectedMonth}
             </div>
           )}
 
