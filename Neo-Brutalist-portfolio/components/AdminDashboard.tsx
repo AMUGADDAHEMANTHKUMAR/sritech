@@ -30,12 +30,12 @@ const ADMIN_PASSWORD = 'sritech@admin2024';
 const ADMIN_SESSION_KEY = 'sritech-admin-authenticated';
 const SHEET_ID = '1Il79grI54I4et2J4v-66POCiOE5g0QAouNHuN8jndQ8';
 const availableMonths = [
-  'Apr 2026',
-  'Mar 2026',
-  'Feb 2026',
-  'Jan 2026',
-  'Dec 2025',
-  'Nov 2025'
+  'April 2026',
+  'March 2026',
+  'February 2026',
+  'January 2026',
+  'December 2025',
+  'November 2025'
 ] as const;
 
 const tabLabels: Record<AdminTab, string> = {
@@ -46,8 +46,8 @@ const tabLabels: Record<AdminTab, string> = {
 
 function getMonthLabel(date = new Date()): string {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
   return `${months[date.getMonth()]} ${date.getFullYear()}`;
 }
@@ -155,10 +155,10 @@ function mapContactRow(row: string[]): SheetRecord {
   };
 }
 
-async function fetchSheetRecords(tab: AdminTab, month: string): Promise<SheetRecord[]> {
-  const beginnerURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Beginners - ${month}`;
-  const professionalURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Professionals - ${month}`;
-  const contactURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Contacts - ${month}`;
+async function fetchSheetRecords(tab: AdminTab, selectedMonth: string): Promise<SheetRecord[]> {
+  const beginnerURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Beginners - ${selectedMonth}`;
+  const professionalURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Professionals - ${selectedMonth}`;
+  const contactURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Contacts - ${selectedMonth}`;
   const sheetUrls: Record<AdminTab, string> = {
     beginners: beginnerURL,
     professionals: professionalURL,
@@ -202,7 +202,7 @@ export default function AdminDashboard() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState<AdminTab>('beginners');
-  const [selectedMonth, setSelectedMonth] = useState('Apr 2026');
+  const [selectedMonth, setSelectedMonth] = useState('April 2026');
   const [beginnerData, setBeginnerData] = useState<SheetRecord[]>([]);
   const [professionalData, setProfessionalData] = useState<SheetRecord[]>([]);
   const [contactData, setContactData] = useState<SheetRecord[]>([]);
@@ -454,7 +454,7 @@ export default function AdminDashboard() {
         <div className="overflow-hidden border border-white/15 bg-[#0b0b0b]">
           <div className="flex flex-col gap-4 border-b border-white/15 p-5 md:flex-row md:items-center md:justify-between">
             <h2 className="font-heading text-2xl font-black uppercase text-white">
-              {tabLabels[activeTab]} Data - {selectedMonth}
+              {`${tabLabels[activeTab]} Data - ${selectedMonth}`.toUpperCase()}
             </h2>
             {selectedRows.size > 0 && (
               <button
