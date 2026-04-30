@@ -121,17 +121,21 @@ const parseGvizResponse = async (url: string): Promise<string[][]> => {
     if (!res.ok) return [];
     const text = await res.text();
     if (!text || text.length < 50) return [];
+    if (
+      text.includes('Invalid query') ||
+      text.includes('sheet not found') ||
+      text.includes('INVALID_ARGUMENT')
+    ) return [];
     const clean = text.substring(47).slice(0, -2);
-    const json = JSON.parse(clean);
+    const json = JSON.parse(clean) as GvizResponse;
     if (!json?.table?.rows?.length) return [];
-
     return json.table.rows
-      .filter((row: GvizRow) => row?.c?.some((c) => c?.v !== null && c?.v !== undefined))
-      .map((row: GvizRow) =>
+      .filter((row) => row?.c?.some((c) => c?.v !== null && c?.v !== undefined))
+      .map((row) =>
         row.c.map((cell, index) => {
           if (!cell || cell.v === null || cell.v === undefined) return '';
           if (index === 0) return parseCell(cell);
-          return String(cell.f || cell.v);
+          return String(cell.f ?? cell.v);
         })
       );
   } catch {
@@ -161,17 +165,21 @@ function mapContactRow(row: string[]): SheetRecord {
 }
 
 async function fetchSheetRecords(tab: AdminTab, selectedMonth: string): Promise<SheetRecord[]> {
-  const beginnerURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Beginners - ${selectedMonth}`;
-  const professionalURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Professionals - ${selectedMonth}`;
-  const contactURL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Contacts - ${selectedMonth}`;
-  const sheetUrls: Record<AdminTab, string> = {
-    beginners: beginnerURL,
-    professionals: professionalURL,
-    contacts: contactURL
+  const encodedMonth = encodeURIComponent(selectedMonth);
+  const sheetNames: Record<AdminTab, string> = {
+    beginners: `Beginners - ${encodedMonth}`,
+    professionals: `Professionals - ${encodedMonth}`,
+    contacts: `Contacts - ${encodedMonth}`
   };
 
-  const rows = await parseGvizResponse(sheetUrls[tab]);
-  return tab === 'contacts' ? rows.map(mapContactRow) : rows.map(mapEnrollmentRow);
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetNames[tab]}`;
+  const rows = await parseGvizResponse(url);
+
+  if (rows.length === 0) return [];
+
+  return tab === 'contacts'
+    ? rows.map(mapContactRow)
+    : rows.map(mapEnrollmentRow);
 }
 
 function rowToCsvValues(row: SheetRecord, tab: AdminTab): string[] {
