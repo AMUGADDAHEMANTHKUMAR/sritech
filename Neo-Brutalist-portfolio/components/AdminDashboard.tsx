@@ -46,8 +46,8 @@ function getMonthLabel(date = new Date()): string {
 
 function generateMonthOptions(): string[] {
   const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'January','February','March','April','May','June',
+    'July','August','September','October','November','December'
   ];
   const now = new Date();
   const options: string[] = [];
@@ -173,21 +173,18 @@ function mapContactRow(row: string[]): SheetRecord {
 }
 
 async function fetchSheetRecords(tab: AdminTab, selectedMonth: string): Promise<SheetRecord[]> {
-  const encodedMonth = encodeURIComponent(selectedMonth);
   const sheetNames: Record<AdminTab, string> = {
-    beginners: `Beginners - ${encodedMonth}`,
-    professionals: `Professionals - ${encodedMonth}`,
-    contacts: `Contacts - ${encodedMonth}`
+    beginners: `Beginners - ${selectedMonth}`,
+    professionals: `Professionals - ${selectedMonth}`,
+    contacts: `Contacts - ${selectedMonth}`
   };
-
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${sheetNames[tab]}`;
+  const encodedSheet = encodeURIComponent(sheetNames[tab]);
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodedSheet}`;
   const rows = await parseGvizResponse(url);
 
   if (rows.length === 0) return [];
 
-  return tab === 'contacts'
-    ? rows.map(mapContactRow)
-    : rows.map(mapEnrollmentRow);
+  return tab === 'contacts' ? rows.map(mapContactRow) : rows.map(mapEnrollmentRow);
 }
 
 function rowToCsvValues(row: SheetRecord, tab: AdminTab): string[] {
@@ -472,14 +469,29 @@ export default function AdminDashboard() {
           <div className="border border-white/15 bg-[#0b0b0b] p-5">
             <p className="mb-2 text-xs font-mono uppercase tracking-widest text-gray-500">Total Beginners</p>
             <p className="font-heading text-4xl font-black text-white">{totalBeginners}</p>
+            {totalBeginners === 0 && (
+              <p style={{fontSize:'11px', color:'#555', marginTop:'8px'}}>
+                "Every expert was once a beginner!"
+              </p>
+            )}
           </div>
           <div className="border border-white/15 bg-[#0b0b0b] p-5">
             <p className="mb-2 text-xs font-mono uppercase tracking-widest text-gray-500">Total Professionals</p>
             <p className="font-heading text-4xl font-black text-white">{totalProfessionals}</p>
+            {totalProfessionals === 0 && (
+              <p style={{fontSize:'11px', color:'#555', marginTop:'8px'}}>
+                "Growth starts with the first step!"
+              </p>
+            )}
           </div>
           <div className="border border-white/15 bg-[#0b0b0b] p-5">
             <p className="mb-2 text-xs font-mono uppercase tracking-widest text-gray-500">Total Contacts</p>
             <p className="font-heading text-4xl font-black text-white">{totalContacts}</p>
+            {totalContacts === 0 && (
+              <p style={{fontSize:'11px', color:'#555', marginTop:'8px'}}>
+                "Your next inquiry is on its way!"
+              </p>
+            )}
           </div>
         </div>
 
@@ -501,16 +513,9 @@ export default function AdminDashboard() {
 
           {loading && <p className="p-6 text-gray-400">Loading...</p>}
           {fetchError && !loading && <p className="p-6 text-gray-400">{fetchError}</p>}
-          {!loading && beginnerData.length === 0 && professionalData.length === 0 && contactData.length === 0 && (
-            <div style={{
-              textAlign: 'center',
-              padding: '80px 20px',
-              color: '#444',
-              fontSize: '14px',
-              letterSpacing: '3px',
-              textTransform: 'uppercase'
-            }}>
-              ⚠ No data available for {selectedMonth}
+          {!loading && currentData.length === 0 && (
+            <div style={{textAlign:'center', padding:'60px', color:'#444', letterSpacing:'2px', fontSize:'13px'}}>
+              ⚠ NO DATA AVAILABLE FOR {selectedMonth.toUpperCase()}
             </div>
           )}
 
