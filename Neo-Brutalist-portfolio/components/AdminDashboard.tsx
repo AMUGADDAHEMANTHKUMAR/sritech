@@ -1,4 +1,6 @@
 import React, { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
+import { useNavigate } from 'react-router-dom';
 
 type AdminTab = 'beginners' | 'professionals' | 'contacts';
 
@@ -26,8 +28,11 @@ interface GvizResponse {
   };
 }
 
-const ADMIN_PASSWORD = 'sritech@admin2024';
-const ADMIN_SESSION_KEY = 'sritech-admin-authenticated';
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASS;
+const ADMIN_SESSION_KEY = 'sritech_admin_auth';
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 15 * 60 * 1000;
+const SESSION_TIMEOUT = 30 * 60 * 1000;
 const SHEET_ID = '1Il79grI54I4et2J4v-66POCiOE5g0QAouNHuN8jndQ8';
 
 const tabLabels: Record<AdminTab, string> = {
@@ -266,9 +271,11 @@ function downloadCSV(rows: string[][], filename: string, activeTab: AdminTab): v
 }
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTab>('beginners');
   const [selectedMonth, setSelectedMonth] = useState(getMonthLabel());
   const [monthOptions, setMonthOptions] = useState<string[]>([getMonthLabel()]);
@@ -282,12 +289,6 @@ export default function AdminDashboard() {
   const totalBeginners = beginnerData.length;
   const totalProfessionals = professionalData.length;
   const totalContacts = contactData.length;
-
-  useEffect(() => {
-    setPassword('');
-    sessionStorage.removeItem(ADMIN_SESSION_KEY);
-    setIsLoggedIn(false);
-  }, []);
 
   const currentData = useMemo(() => {
     if (activeTab === 'beginners') {
@@ -304,6 +305,39 @@ export default function AdminDashboard() {
   useEffect(() => {
     setSelectedRows(new Set());
   }, [activeTab, selectedMonth]);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    setIsLoggedIn(false);
+    setPassword('');
+    setLoginError('');
+    window.location.href = '/admin/login';
+  };
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      return;
+    }
+
+    let timeout = window.setTimeout(handleLogout, SESSION_TIMEOUT);
+    const resetTimer = () => {
+      window.clearTimeout(timeout);
+      timeout = window.setTimeout(handleLogout, SESSION_TIMEOUT);
+    };
+
+    document.addEventListener('mousemove', resetTimer);
+    document.addEventListener('keydown', resetTimer);
+    document.addEventListener('click', resetTimer);
+    document.addEventListener('touchstart', resetTimer);
+
+    return () => {
+      window.clearTimeout(timeout);
+      document.removeEventListener('mousemove', resetTimer);
+      document.removeEventListener('keydown', resetTimer);
+      document.removeEventListener('click', resetTimer);
+      document.removeEventListener('touchstart', resetTimer);
+    };
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -374,23 +408,35 @@ export default function AdminDashboard() {
 
   const handleLogin = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const attempts = parseInt(sessionStorage.getItem('login_attempts') || '0', 10);
+    const lockoutUntil = parseInt(sessionStorage.getItem('lockout_until') || '0', 10);
 
-    if (password !== ADMIN_PASSWORD) {
-      setLoginError('Incorrect password. Try again.');
+    if (Date.now() < lockoutUntil) {
+      const remaining = Math.ceil((lockoutUntil - Date.now()) / 60000);
+      setLoginError(`Too many attempts. Try again in ${remaining} minute(s).`);
       return;
     }
 
+    if (password !== ADMIN_PASSWORD) {
+      const newAttempts = attempts + 1;
+      sessionStorage.setItem('login_attempts', String(newAttempts));
+
+      if (newAttempts >= MAX_ATTEMPTS) {
+        sessionStorage.setItem('lockout_until', String(Date.now() + LOCKOUT_DURATION));
+        setLoginError('Account locked for 15 minutes due to too many failed attempts.');
+      } else {
+        setLoginError(`Invalid credentials. ${MAX_ATTEMPTS - newAttempts} attempt(s) remaining.`);
+      }
+      return;
+    }
+
+    sessionStorage.removeItem('login_attempts');
+    sessionStorage.removeItem('lockout_until');
     sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
     setIsLoggedIn(true);
     setLoginError('');
     setPassword('');
-  };
-
-  const handleLogout = () => {
-    sessionStorage.removeItem(ADMIN_SESSION_KEY);
-    setIsLoggedIn(false);
-    setPassword('');
-    setLoginError('');
+    navigate('/admin', { replace: true });
   };
 
   const allCurrentRowsSelected = currentData.length > 0 && selectedRows.size === currentData.length;
@@ -443,47 +489,71 @@ export default function AdminDashboard() {
 
   if (!isLoggedIn) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#050505] px-5 py-10 text-white">
-        <form onSubmit={handleLogin} className="w-full max-w-md border border-white/15 bg-[#0b0b0b] p-8 md:p-10">
-          <p className="mb-8 font-heading text-3xl font-black uppercase tracking-tight text-white">
-            SRITECH
-          </p>
-          <p className="mb-3 text-xs font-mono uppercase tracking-[0.35em] text-gray-500">
-            Private Access
-          </p>
-          <h1 className="mb-8 font-heading text-4xl font-black uppercase leading-none text-white md:text-5xl">
-            Admin Login
-          </h1>
+      <>
+        <Helmet>
+          <title>Admin Login | SRITECH</title>
+        </Helmet>
+        <main id="main-content" className="flex min-h-screen items-center justify-center bg-[#050505] px-5 py-10 text-white">
+          <form onSubmit={handleLogin} className="w-full max-w-md border border-white/15 bg-[#0b0b0b] p-8 md:p-10">
+            <p className="mb-8 font-heading text-3xl font-black uppercase tracking-tight text-white">
+              SRITECH
+            </p>
+            <p className="mb-3 text-xs font-mono uppercase tracking-[0.35em] text-gray-500">
+              Private Access
+            </p>
+            <h1 className="mb-8 font-heading text-4xl font-black uppercase leading-none text-white md:text-5xl">
+              Admin Login
+            </h1>
 
-          <label htmlFor="admin-password" className="mb-2 block text-xs font-mono uppercase tracking-wider text-gray-400">
-            Password
-          </label>
-          <input
-            id="admin-password"
-            type="password"
-            autoComplete="new-password"
-            autoSave="off"
-            readOnly
-            onFocus={(e) => e.target.removeAttribute('readOnly')}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="mb-4 h-12 w-full border border-white/15 bg-[#050505] px-4 text-white outline-none transition-colors focus:border-white"
-          />
-          {loginError && <p className="mb-4 text-sm text-red-400">{loginError}</p>}
+            <label htmlFor="admin-password" className="mb-2 block text-xs font-mono uppercase tracking-wider text-gray-400">
+              Password
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="admin-password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                autoSave="off"
+                readOnly
+                onFocus={(e) => e.target.removeAttribute('readOnly')}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                aria-label="Admin password"
+                aria-required="true"
+                className="mb-4 h-12 w-full border border-white/15 bg-[#050505] px-4 pr-12 text-white outline-none transition-colors focus:border-white"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute', right: '10px', top: '50%',
+                  transform: 'translateY(-50%)', background: 'none',
+                  border: 'none', cursor: 'pointer', color: '#666'
+                }}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {loginError && <p className="mb-4 text-sm text-red-400" role="alert" aria-live="polite">{loginError}</p>}
 
-          <button
-            type="submit"
-            className="h-12 w-full border border-white bg-white text-sm font-bold uppercase tracking-[0.25em] text-black transition-colors hover:bg-transparent hover:text-white"
-          >
-            Login
-          </button>
-        </form>
-      </main>
+            <button
+              type="submit"
+              className="h-12 w-full border border-white bg-white text-sm font-bold uppercase tracking-[0.25em] text-black transition-colors hover:bg-transparent hover:text-white"
+            >
+              Login
+            </button>
+          </form>
+        </main>
+      </>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#050505] px-4 py-8 text-white md:px-8">
+    <main id="main-content" className="min-h-screen bg-[#050505] px-4 py-8 text-white md:px-8">
+      <Helmet>
+        <title>Dashboard | SRITECH Admin</title>
+      </Helmet>
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex items-center justify-between gap-4 border-b border-white/15 pb-6">
           <div className="min-w-0">
@@ -496,6 +566,7 @@ export default function AdminDashboard() {
               id="month-selector"
               value={selectedMonth}
               onChange={(event) => setSelectedMonth(event.target.value)}
+              aria-label="Select month"
               className="h-11 border border-white/20 bg-[#111] px-4 text-sm text-white outline-none transition-colors focus:border-white"
             >
               {monthOptions.map((month) => (
@@ -588,7 +659,7 @@ export default function AdminDashboard() {
           </div>
 
           {loading && <p className="p-6 text-gray-400">Loading...</p>}
-          {fetchError && !loading && <p className="p-6 text-gray-400">{fetchError}</p>}
+          {fetchError && !loading && <p className="p-6 text-gray-400" role="alert" aria-live="polite">{fetchError}</p>}
           {!loading && currentData.length === 0 && (
             <div style={{textAlign:'center', padding:'60px', color:'#444', letterSpacing:'2px', fontSize:'13px'}}>
               ⚠ NO DATA AVAILABLE FOR {selectedMonth.toUpperCase()}
@@ -605,6 +676,7 @@ export default function AdminDashboard() {
                         type="checkbox"
                         checked={allCurrentRowsSelected}
                         onChange={handleToggleSelectAll}
+                        aria-label="Select all rows"
                         className="h-4 w-4 accent-white"
                       />
                     </th>
@@ -624,6 +696,7 @@ export default function AdminDashboard() {
                           type="checkbox"
                           checked={selectedRows.has(index)}
                           onChange={() => handleToggleRow(index)}
+                          aria-label={`Select row ${index + 1}`}
                           className="h-4 w-4 accent-white"
                         />
                       </td>

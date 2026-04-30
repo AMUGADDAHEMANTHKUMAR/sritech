@@ -190,10 +190,12 @@ export default function CourseDetails() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Your full name"
+                    aria-label="Your full name"
+                    aria-required="true"
                     className={`w-full bg-[#0a0a0a] border ${errors.name ? 'border-red-500' : 'border-gray-700'} px-4 py-3 outline-none focus:border-white transition-colors text-white`}
                   />
                   {errors.name && (
-                    <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+                    <p className="text-red-500 text-xs mt-1" role="alert" aria-live="polite">{errors.name}</p>
                   )}
                 </div>
 
@@ -208,10 +210,12 @@ export default function CourseDetails() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="Your phone number"
+                    aria-label="Your phone number"
+                    aria-required="true"
                     className={`w-full bg-[#0a0a0a] border ${errors.phone ? 'border-red-500' : 'border-gray-700'} px-4 py-3 outline-none focus:border-white transition-colors text-white`}
                   />
                   {errors.phone && (
-                    <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                    <p className="text-red-500 text-xs mt-1" role="alert" aria-live="polite">{errors.phone}</p>
                   )}
                 </div>
 
@@ -226,10 +230,12 @@ export default function CourseDetails() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your@email.com"
+                    aria-label="Your email address"
+                    aria-required="true"
                     className={`w-full bg-[#0a0a0a] border ${errors.email ? 'border-red-500' : 'border-gray-700'} px-4 py-3 outline-none focus:border-white transition-colors text-white`}
                   />
                   {errors.email && (
-                    <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+                    <p className="text-red-500 text-xs mt-1" role="alert" aria-live="polite">{errors.email}</p>
                   )}
                 </div>
 
@@ -243,6 +249,7 @@ export default function CourseDetails() {
                     id="course"
                     value={course.name}
                     readOnly
+                    aria-label="Selected course"
                     className="w-full bg-[#0a0a0a] border border-gray-700 px-4 py-3 outline-none text-gray-400 cursor-not-allowed"
                   />
                 </div>

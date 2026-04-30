@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { FocusEvent, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import Lenis from '@studio-freight/lenis';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -13,6 +14,8 @@ import ContactForm from './components/ContactForm';
 import CourseDetails from './components/CourseDetails';
 import EnrollPage from './components/EnrollPage';
 import AdminDashboard from './components/AdminDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
+import NotFound from './components/NotFound';
 import Footer from './components/Footer';
 import CustomCursor from './components/CustomCursor';
 
@@ -92,8 +95,18 @@ function RouteScrollManager() {
 function MainApp() {
   return (
     <>
+      <Helmet>
+        <title>SRITECH | Technology Solutions</title>
+        <meta name="description" content="SRITECH delivers modern software, IT consulting, and digital transformation services." />
+        <meta property="og:title" content="SRITECH | Technology Solutions" />
+        <meta property="og:description" content="Modern technology solutions for businesses." />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://sritech-website.vercel.app/" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="SRITECH | Technology Solutions" />
+      </Helmet>
       <Header />
-      <main>
+      <main id="main-content">
         <Hero />
         <WorkGallery />
         <Intro />
@@ -108,8 +121,12 @@ function MainApp() {
 function CourseDetailsPage() {
   return (
     <>
+      <Helmet>
+        <title>Our Services | SRITECH</title>
+        <meta name="description" content="Explore SRITECH's technology services including software development, IT consulting, and digital solutions." />
+      </Helmet>
       <Header />
-      <main>
+      <main id="main-content">
         <CourseDetails />
       </main>
       <Footer />
@@ -118,10 +135,34 @@ function CourseDetailsPage() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const loader = document.getElementById('app-loading');
+    if (loader) loader.style.display = 'none';
+  }, []);
+
+  const revealSkipLink = (event: FocusEvent<HTMLAnchorElement>) => {
+    event.currentTarget.style.top = '0';
+  };
+
+  const hideSkipLink = (event: FocusEvent<HTMLAnchorElement>) => {
+    event.currentTarget.style.top = '-40px';
+  };
+
   return (
     <Router>
       <SmoothScroll />
       <RouteScrollManager />
+      <a
+        href="#main-content"
+        style={{
+          position: 'absolute', top: '-40px', left: 0, background: '#000',
+          color: '#fff', padding: '8px', zIndex: 100, transition: 'top .1s'
+        }}
+        onFocus={revealSkipLink}
+        onBlur={hideSkipLink}
+      >
+        Skip to main content
+      </a>
       <div className="w-full min-h-screen bg-[#050505] text-[#e1e1e1]">
         <div className="noise-overlay"></div>
         <CustomCursor />
@@ -129,7 +170,16 @@ export default function App() {
           <Route path="/" element={<MainApp />} />
           <Route path="/course/:courseId" element={<CourseDetailsPage />} />
           <Route path="/enroll/:courseName" element={<EnrollPage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/login" element={<AdminDashboard />} />
+          <Route
+            path="/admin"
+            element={(
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            )}
+          />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
     </Router>

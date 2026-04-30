@@ -27,7 +27,7 @@ export default function Services() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.utils.toArray('.path-item').forEach((item: any) => {
+      gsap.utils.toArray<HTMLElement>('.path-item').forEach((item) => {
         gsap.fromTo(
           item,
           { y: 30, opacity: 0 },
@@ -119,6 +119,8 @@ export default function Services() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              aria-label="Your name"
+              aria-required="true"
               className="w-full bg-transparent border border-gray-600 px-4 py-3 outline-none focus:border-white"
             />
             <input
@@ -128,6 +130,8 @@ export default function Services() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
+              aria-label="Your phone number"
+              aria-required="true"
               className="w-full bg-transparent border border-gray-600 px-4 py-3 outline-none focus:border-white"
             />
             <input
@@ -137,6 +141,8 @@ export default function Services() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              aria-label="Your email address"
+              aria-required="true"
               className="w-full bg-transparent border border-gray-600 px-4 py-3 outline-none focus:border-white md:col-span-2"
             />
           </div>

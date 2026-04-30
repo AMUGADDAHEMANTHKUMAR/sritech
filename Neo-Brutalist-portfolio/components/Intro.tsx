@@ -9,9 +9,9 @@ export default function Intro() {
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      const lines = gsap.utils.toArray('.intro-line-wrap');
+      const lines = gsap.utils.toArray<HTMLElement>('.intro-line-wrap');
       
-      lines.forEach((line: any) => {
+      lines.forEach((line) => {
         gsap.fromTo(line.querySelectorAll('.char'), 
           { y: 100, opacity: 0, rotateX: -90 },
           {

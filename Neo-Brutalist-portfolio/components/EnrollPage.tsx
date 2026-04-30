@@ -1,4 +1,5 @@
 import React, { FormEvent, useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { allProjects, Project, SelectedPath, studentProjects, workExperienceProjects } from './WorkGallery';
 
@@ -132,7 +133,11 @@ export default function EnrollPage() {
 
   if (!course) {
     return (
-      <main className="flex min-h-screen w-full flex-col items-center justify-center overflow-x-hidden bg-[#050505] px-[60px] py-[40px] text-white max-md:justify-start max-md:p-[20px]">
+      <main id="main-content" className="flex min-h-screen w-full flex-col items-center justify-center overflow-x-hidden bg-[#050505] px-[60px] py-[40px] text-white max-md:justify-start max-md:p-[20px]">
+        <Helmet>
+          <title>Our Services | SRITECH</title>
+          <meta name="description" content="Explore SRITECH's technology services including software development, IT consulting, and digital solutions." />
+        </Helmet>
         <div className="flex w-full max-w-[1100px] flex-col">
           <button
             type="button"
@@ -151,7 +156,11 @@ export default function EnrollPage() {
   }
 
   return (
-    <main className="flex min-h-screen w-full flex-col items-center justify-center overflow-x-hidden bg-[#050505] px-[60px] py-[40px] text-[#e1e1e1] max-md:justify-start max-md:p-[20px]">
+    <main id="main-content" className="flex min-h-screen w-full flex-col items-center justify-center overflow-x-hidden bg-[#050505] px-[60px] py-[40px] text-[#e1e1e1] max-md:justify-start max-md:p-[20px]">
+      <Helmet>
+        <title>{course.title} Enrollment | SRITECH</title>
+        <meta name="description" content={`Enroll in ${course.title} at SRITECH.`} />
+      </Helmet>
       <div className="flex w-full max-w-[1100px] flex-col">
         <button
           type="button"
@@ -218,9 +227,11 @@ export default function EnrollPage() {
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
                   required
+                  aria-label="Your full name"
+                  aria-required="true"
                   className="h-[38px] w-full border border-white/15 bg-[#050505] px-3 text-[13px] text-white outline-none transition-colors focus:border-white"
                 />
-                {errors.fullName && <p className="mt-2 text-sm text-red-400">{errors.fullName}</p>}
+                {errors.fullName && <p className="mt-2 text-sm text-red-400" role="alert" aria-live="polite">{errors.fullName}</p>}
               </div>
 
               <div>
@@ -233,9 +244,11 @@ export default function EnrollPage() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required
+                  aria-label="Your email address"
+                  aria-required="true"
                   className="h-[38px] w-full border border-white/15 bg-[#050505] px-3 text-[13px] text-white outline-none transition-colors focus:border-white"
                 />
-                {errors.email && <p className="mt-2 text-sm text-red-400">{errors.email}</p>}
+                {errors.email && <p className="mt-2 text-sm text-red-400" role="alert" aria-live="polite">{errors.email}</p>}
               </div>
 
               <div>
@@ -249,9 +262,11 @@ export default function EnrollPage() {
                   value={phone}
                   onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
                   required
+                  aria-label="Your phone number"
+                  aria-required="true"
                   className="h-[38px] w-full border border-white/15 bg-[#050505] px-3 text-[13px] text-white outline-none transition-colors focus:border-white"
                 />
-                {errors.phone && <p className="mt-2 text-sm text-red-400">{errors.phone}</p>}
+                {errors.phone && <p className="mt-2 text-sm text-red-400" role="alert" aria-live="polite">{errors.phone}</p>}
               </div>
 
               <div>
@@ -263,6 +278,7 @@ export default function EnrollPage() {
                   type="text"
                   value={course.title}
                   readOnly
+                  aria-label="Selected course"
                   className="h-[38px] w-full cursor-not-allowed border border-white/15 bg-[#050505] px-3 text-[13px] text-gray-400 outline-none"
                 />
               </div>
@@ -276,6 +292,7 @@ export default function EnrollPage() {
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
                   rows={5}
+                  aria-label="Message or query"
                   className="h-[72px] w-full resize-none border border-white/15 bg-[#050505] px-3 py-2 text-[13px] text-white outline-none transition-colors focus:border-white"
                 />
               </div>
@@ -289,7 +306,7 @@ export default function EnrollPage() {
               </button>
 
               {successMessage && (
-                <p className="border border-green-400/30 bg-green-400/10 px-4 py-3 text-sm text-green-300">
+                <p className="border border-green-400/30 bg-green-400/10 px-4 py-3 text-sm text-green-300" role="alert" aria-live="polite">
                   {successMessage}
                 </p>
               )}
@@ -300,4 +317,3 @@ export default function EnrollPage() {
     </main>
   );
 }
-

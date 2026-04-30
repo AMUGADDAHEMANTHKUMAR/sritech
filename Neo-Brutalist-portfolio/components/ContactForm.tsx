@@ -118,9 +118,11 @@ export default function ContactForm() {
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 required
+                aria-label="Your full name"
+                aria-required="true"
                 className="h-11 w-full border border-white/15 bg-[#050505] px-4 text-sm text-white outline-none transition-colors focus:border-white"
               />
-              {errors.name && <p className="mt-2 text-sm text-red-400">{errors.name}</p>}
+              {errors.name && <p className="mt-2 text-sm text-red-400" role="alert" aria-live="polite">{errors.name}</p>}
             </div>
 
             <div>
@@ -133,9 +135,11 @@ export default function ContactForm() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required
+                aria-label="Your email address"
+                aria-required="true"
                 className="h-11 w-full border border-white/15 bg-[#050505] px-4 text-sm text-white outline-none transition-colors focus:border-white"
               />
-              {errors.email && <p className="mt-2 text-sm text-red-400">{errors.email}</p>}
+              {errors.email && <p className="mt-2 text-sm text-red-400" role="alert" aria-live="polite">{errors.email}</p>}
             </div>
 
             <div>
@@ -149,9 +153,11 @@ export default function ContactForm() {
                 value={phone}
                 onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
                 required
+                aria-label="Your phone number"
+                aria-required="true"
                 className="h-11 w-full border border-white/15 bg-[#050505] px-4 text-sm text-white outline-none transition-colors focus:border-white"
               />
-              {errors.phone && <p className="mt-2 text-sm text-red-400">{errors.phone}</p>}
+              {errors.phone && <p className="mt-2 text-sm text-red-400" role="alert" aria-live="polite">{errors.phone}</p>}
             </div>
 
             <div>
@@ -164,9 +170,11 @@ export default function ContactForm() {
                 onChange={(event) => setMessage(event.target.value)}
                 required
                 rows={5}
+                aria-label="Your message"
+                aria-required="true"
                 className="w-full resize-none border border-white/15 bg-[#050505] px-4 py-3 text-sm text-white outline-none transition-colors focus:border-white"
               />
-              {errors.message && <p className="mt-2 text-sm text-red-400">{errors.message}</p>}
+              {errors.message && <p className="mt-2 text-sm text-red-400" role="alert" aria-live="polite">{errors.message}</p>}
             </div>
 
             <button
@@ -178,7 +186,7 @@ export default function ContactForm() {
             </button>
 
             {successMessage && (
-              <p className="border border-green-400/30 bg-green-400/10 px-4 py-3 text-sm text-green-300">
+              <p className="border border-green-400/30 bg-green-400/10 px-4 py-3 text-sm text-green-300" role="alert" aria-live="polite">
                 {successMessage}
               </p>
             )}

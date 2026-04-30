@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SRITECH website</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&family=Syne:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
@@ -60,6 +62,24 @@
 </script>
 </head>
   <body>
+    <style>
+      #app-loading {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+        background: #ffffff; z-index: 9999; flex-direction: column; gap: 16px;
+      }
+      .spinner {
+        width: 40px; height: 40px; border: 3px solid #f0f0f0;
+        border-top-color: #333; border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .loading-text { font-family: sans-serif; font-size: 14px; color: #999; }
+    </style>
+    <div id="app-loading">
+      <div class="spinner"></div>
+      <p class="loading-text">Loading SRITECH...</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

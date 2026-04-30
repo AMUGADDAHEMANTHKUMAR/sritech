@@ -62,9 +62,10 @@ export default function Process() {
 
         <div className="border-t border-black">
           {steps.map((step, index) => (
-            <div 
+            <button
+              type="button"
               key={index} 
-              className="border-b border-black cursor-pointer group"
+              className="w-full border-b border-black cursor-pointer group bg-transparent text-left"
               onClick={() => setOpenIndex(openIndex === index ? null : index)}
             >
               <div className="py-8 md:py-12 flex justify-between items-center pr-4">
@@ -90,7 +91,7 @@ export default function Process() {
                   </p>
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>

@@ -53,6 +53,17 @@ export default function Header() {
     document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  useEffect(() => {
+    if (!mobileMenuOpen) {
+      return;
+    }
+
+    const handleOutsideClick = () => setMobileMenuOpen(false);
+    document.addEventListener('click', handleOutsideClick);
+
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [mobileMenuOpen]);
+
   return (
     <>
       <header 
@@ -97,9 +108,13 @@ export default function Header() {
 
         {/* Mobile Menu Button */}
         <button 
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          onClick={(event) => {
+            event.stopPropagation();
+            setMobileMenuOpen(!mobileMenuOpen);
+          }}
           className="md:hidden relative z-50 w-10 h-10 flex flex-col items-center justify-center gap-1.5"
-          aria-label="Toggle menu"
+          aria-label="Toggle navigation"
+          aria-expanded={mobileMenuOpen}
         >
           <span className={`w-6 h-0.5 bg-white transition-all duration-300 ${mobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
           <span className={`w-6 h-0.5 bg-white transition-all duration-300 ${mobileMenuOpen ? 'opacity-0' : ''}`}></span>
@@ -109,7 +124,7 @@ export default function Header() {
 
       {/* Mobile Menu Overlay */}
       <div className={`fixed inset-0 bg-black z-40 md:hidden transition-all duration-500 ${mobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
-        <nav className="flex items-center justify-center h-full">
+        <nav className="flex items-center justify-center h-full" onClick={(event) => event.stopPropagation()}>
           <ul className="flex flex-col items-center space-y-8 text-2xl font-medium tracking-wide uppercase text-white">
             {navItems.map((item, i) => (
               <li key={item.label} className={`transition-all duration-500 delay-${i * 100} ${mobileMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
